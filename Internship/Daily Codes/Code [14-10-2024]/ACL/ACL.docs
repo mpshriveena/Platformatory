@@ -1,0 +1,31 @@
+Create a test topic.
+kafka-topics --bootstrap-server localhost:9092 --create --topic acl-test --partitions 1 --replication-factor 1
+kafka-console-producer --broker-list localhost:9093 --topic acl-test --producer.config client-ssl.properties
+
+Enable ACL authorization in server.properties .
+sudo nano /etc/kafka/server.properties
+
+Add the following lines.
+authorizer.class.name=kafka.security.authorizer.AclAuthorizer
+super.users=User:platformatory
+allow.everyone.if.no.acl.found=true
+ssl.principal.mapping.rules=RULE:^CN=(.*?),OU=.*$/$1/,DEFAULT
+
+Restart Kafka, and check its status.
+sudo systemctl restart confluent-kafka
+sudo systemctl status confluent-kafka
+
+Write some data to the topic. This should work since the topic has no ACLs and allow.everyone.if.no.acl.found is set
+to true .
+Add an ACL to allow otheruser to write to the topic.
+Attempt to write to the topic again. This time it should fail, since the topic has an ACL but not one that allows kafkauser
+to write to it.
+
+kafka-acls --authorizer-properties zookeeper.connect=localhost:2181 --add --allow-principal User:otheruser --operation all --topic acl-test
+kafka-console-producer --broker-list zoo1:9093 --topic acl-test --producer.config client-ssl.properties
+
+Create an ACL allowing Platformatory to write to the acl-test topic.
+Attempt to write to the topic once more. This time it should succeed.
+
+kafka-acls --authorizer-properties zookeeper.connect=localhost:2181 --add --allow-principal User:PLatformatory --operation write --topic acl-test
+kafka-console-producer --broker-list zoo1:9093 --topic acl-test --producer.config client-ssl.properties

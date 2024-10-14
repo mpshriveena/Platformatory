@@ -1,0 +1,46 @@
+Lesson Reference
+1. Create a topic to use for testing.
+2. Create the input and output files.
+cd ~/
+touch input.txt
+touch output.txt
+chmod 777 output.txt
+3. Enter some data into the input file.
+vi input.txt
+4. Create a source connector to import data into Kafka from a file.
+curl -X POST http://localhost:8083/connectors \
+-H 'Accept: */*' \
+-H 'Content-Type: application/json' \
+-d '{
+"name": "file_source_connector",
+"config": {
+"connector.class": "org.apache.kafka.connect.file.FileStreamSourceConnector",
+"topic": "connect_topic",
+"file": "/home/mpshriveena/Desktop/Platformatory/trials/input.txt",
+"value.converter": "org.apache.kafka.connect.storage.StringConverter"
+}
+}'
+5. Get information about the source connector.
+curl http://localhost:8083/connectors/file_source_connector
+curl http://localhost:8083/connectors/file_source_connector/status
+6. Check the topic to verify the new data has appeared.
+kafka-topics --bootstrap-server localhost:9092 --create --topic connect_topic --partitions 1 --replicatio
+kafka-console-consumer --bootstrap-server localhost:9092 --topic connect_topic --from-beginning
+7. Create a sink connector to export data from Kafka to a file.
+curl -X POST http://localhost:8083/connectors \
+-H 'Accept: */*' \
+-H 'Content-Type: application/json' \
+-d '{
+"name": "file_sink_connector",
+"config": {
+"connector.class": "org.apache.kafka.connect.file.FileStreamSinkConnector",
+"topics": "connect_topic",
+"file": "/home/mpshriveena/Desktop/Platformatory/trials/output.txt",
+"value.converter": "org.apache.kafka.connect.storage.StringConverter"
+}
+}'
+8. Check the contents of the output file.
+cat /home/cloud_user/output.txt
+9. Delete both connectors to clean up.
+curl -X DELETE http://localhost:8083/connectors/file_source_connector
+curl -X DELETE http://localhost:8083/connectors/file_sink_connector

@@ -39,7 +39,7 @@ curl http://localhost:8083/connectors/file_source_connector/status
 
 Check the topic to verify the new data has appeared.
 
-kafka-topics --bootstrap-server localhost:9092 --create --topic connect_topic --partitions 1 --replicatio
+kafka-topics --bootstrap-server localhost:9092 --create --topic connect_topic --partitions 1 --replication-factor 1
 kafka-console-consumer --bootstrap-server localhost:9092 --topic connect_topic --from-beginning
 
 Create a sink connector to export data from Kafka to a file.

@@ -1,0 +1,5 @@
+laptop: 2
+system: 1
+mouse: 1
+phone: 1
+tab: 4

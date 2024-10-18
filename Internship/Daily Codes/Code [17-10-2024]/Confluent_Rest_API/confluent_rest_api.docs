@@ -1,0 +1,38 @@
+Confluent REST API 
+
+Install Confluent REST
+sudo apt-get update
+sudo apt-get install confluent-rest
+
+Create a topic named inventory-inventory_purchases
+kafka-topics --bootstrap-server localhost:9092 --topic inventory_purchases --create --partitions 1 --replication-factor 1
+
+sudo systemctl start confluent-schema-registry confluent-kafka-rest
+sudo systemctl status confluent-schema-registry confluent-kafka-rest
+
+1) Producing messages
+curl -X POST -H "Content-Type: application/vnd.kafka.json.v2+json" \
+-H "Accept: application/vnd.kafka.v2+json" \
+--data '{"records":[{"key":"apples","value":"23"},{"key":"grapes","value":"160"}]}' \
+"http://localhost:8082/topics/inventory_purchases"
+
+2) Consuming messages
+Create consumer and consumer instance
+curl -X POST -H "Content-Type: application/vnd.kafka.v2+json" \
+--data '{"name": "inventory_purchases_instance", "format": "json", "auto.offset.reset": "earliest"}' \
+http://localhost:8082/consumers/inventory_purchases_consumer
+
+The output will be similar to this
+{"instance_id":"inventory_purchases_instance","base_uri":"http://localhost:8082/consumers/inventory_purchases_consumer/instances/inventory_purchases_instance"}
+
+Subscribe to the topic
+curl -X POST -H "Content-Type: application/vnd.kafka.v2+json" \
+--data '{"topics":["inventory_purchases"]}' \
+http://localhost:8082/consumers/inventory_purchases_consumer/instances/inventory_purchases_instance/subscription
+
+Consume
+curl -X GET -H "Accept: application/vnd.kafka.json.v2+json" \
+http://localhost:8082/consumers/inventory_purchases_consumer/instances/inventory_purchases_instance/records
+
+The output will be similar to this
+[{"topic":"inventory_purchases","key":"apples","value":"23","partition":0,"offset":0},{"topic":"inventory_purchases","key":"grapes","value":"160","partition":0,"offset":1}]mpshriveena@mpshriveena-HP-Laptop-15s-fq5xxx:~$ 

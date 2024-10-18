@@ -1,0 +1,58 @@
+Docker Commands
+
+docker run node
+--> Checks if node image is present locally to run. If not it installs it.
+docker ps # only running processes
+--> ps refers to processes
+docker ps -a # all processes
+docker run -it node
+--> -i refers to interactive mode
+--> -t exposes a terminal
+
+# Basic Structure
+FROM node # first step
+WORKDIR /app
+COPY . .
+--> First dot refers to local directry
+--> Second dot refers to container directory
+[or]
+COPY . /app
+RUN npm install
+EXPOSE 80
+--> Just for clear understanding
+CMD ["node", "server.js"] 
+--> Last step [cmd won't be done at the time of image creation]
+
+Building image and running container
+docker build .
+--> Finds Dockerfile in the current directory and build image accordingly
+docker run image_id
+docker stop container_name
+docker run -p 3000:80 image_id # publish [very necessary] # runs deault in attach mode
+
+# Optimized Structure
+--> Docker uses cached layer 
+--> If there is any change in any line, it runs the line again instead of cached data
+--> Hence lines after that also executed again
+--> Hence we can create some optimization
+FROM node
+WORKDIR /app
+COPY package.json /app
+RUN npm install
+COPY . /app
+EXPOSE 80
+CMD ["node", "server.js"]
+
+docker COMMAND --help
+docker run -a 8000:80 image_id # Attach mode 
+docker run -d 8000:80 image_id # Detach mode
+--> We can run other processes in the same terminal in detached mode.
+docker attach container_name # If you want to attach an already detached container
+docker logs container_name
+--> Contains logs
+docker logs -f container_name # To keep on listening
+
+docker run -it image_id
+docker start container_name # Restart already created container
+docker start -a -i container_name
+--> Restart the already created container in  interactive mode

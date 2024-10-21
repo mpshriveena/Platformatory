@@ -12,6 +12,7 @@ mkdir certs
 cd certs
 
 Generate a certificate authority (CA).
+openssl req -new -x509 -keyout ca-key -out ca-cert -days 365 -subj "/C=IN/ST=Karnataka/L=Uttarahalli/O=Platformatory/OU=Streaming/CN=Platformatory"
 When prompted, enter and verify a new passphrase.
 Create trust stores for clients and servers, and import the certificate authority public key into both trust stores.
 
@@ -20,8 +21,6 @@ keytool -keystore server.truststore.jks -alias CARoot -import -file ca-cert
 
 When prompted, create a new keystore password for each trust store, and type yes for both to import the CA certificate.
 Generate keys and certificates for broker using the CA. 
-
-openssl req -new -x509 -keyout ca-key -out ca-cert -days 365 -subj "/C=IN/ST=Karnataka/L=Uttarahalli/O=Platformatory/OU=Streaming/CN=Platformatory"
 keytool -keystore kafka.keystore.jks -alias localhost -validity 365 -genkey -keyalg RSA -dname "CN=Platformatory/OU=Streaming/O=Platformatory/L=Uttarahalli/ST=Karnataka/C=IN" -ext san=dns:localhost,ip:127.0.0.1,ip:192.168.1.25
 
 When prompted, create a keystore password for all three keystores. When prompted for the key password, you can simply
@@ -34,12 +33,11 @@ Create a certificate-signing configuration file to contain the SANs for each bro
 echo subjectAltName = DNS:localhost,IP:127.0.0.1,IP:192.168.1.25 >> kafka-extfile.cnf
 
 Sign each broker certificate with the CA.
+openssl x509 -req -CA ca-cert -CAkey ca-key -in kafka-cert-file -out kafka-cert-signed -days 365 -CAcreates
 Import the CA certificate and signed broker certificate into each server's keystore.
 
 keytool -keystore kafka.keystore.jks -alias CARoot -import -file ca-cert
 keytool -keystore kafka.keystore.jks -alias localhost -import -file kafka-cert-signed
-openssl x509 -req -CA ca-cert -CAkey ca-key -in kafka-cert-file -out zoo1-cert-signed -days 365 -CAcreates
-keytool -keystore zoo2.keystore.jks -alias CARoot -import -file ca-cert
 
 Configure Your Brokers
 Copy the appropriate keystore to the home directory

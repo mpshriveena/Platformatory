@@ -1,0 +1,72 @@
+Create Some Test Data
+To begin, create a test topic with some data that you can read at the end for testing.
+Produce some data to the tls-test topic.
+kafka-topics --bootstrap-server localhost:9092 --topic tls-test --create --partitions 1 --replication-factor 1
+kafka-console-producer --bootstrap-server localhost:9092 --topic tls-test
+
+Generate Certificate Files
+Log in to your first broker. Create a directory to work in as you generate certificate files.
+
+cd ~/
+mkdir certs
+cd certs
+
+Generate a certificate authority (CA).
+openssl req -new -x509 -keyout ca-key -out ca-cert -days 365 -subj "/C=IN/ST=Karnataka/L=Uttarahalli/O=Platformatory/OU=Streaming/CN=Platformatory"
+When prompted, enter and verify a new passphrase.
+Create trust stores for clients and servers, and import the certificate authority public key into both trust stores.
+
+keytool -keystore client.truststore.jks -alias CARoot -import -file ca-cert
+keytool -keystore server.truststore.jks -alias CARoot -import -file ca-cert
+
+When prompted, create a new keystore password for each trust store, and type yes for both to import the CA certificate.
+Generate keys and certificates for broker using the CA. 
+keytool -keystore kafka.keystore.jks -alias localhost -validity 365 -genkey -keyalg RSA -dname "CN=Platformatory/OU=Streaming/O=Platformatory/L=Uttarahalli/ST=Karnataka/C=IN" -ext san=dns:localhost,ip:127.0.0.1,ip:192.168.1.25
+
+When prompted, create a keystore password for all three keystores. When prompted for the key password, you can simply
+press RETURN to use the keystore password for the key as well.
+Export each server's certificate from its keystore.
+
+keytool -keystore kafka.keystore.jks -alias localhost -certreq -file kafka-cert-file
+
+Create a certificate-signing configuration file to contain the SANs for each broker.
+echo subjectAltName = DNS:localhost,IP:127.0.0.1,IP:192.168.1.25 >> kafka-extfile.cnf
+
+Sign each broker certificate with the CA.
+openssl x509 -req -CA ca-cert -CAkey ca-key -in kafka-cert-file -out kafka-cert-signed -days 365 -CAcreates
+Import the CA certificate and signed broker certificate into each server's keystore.
+
+keytool -keystore kafka.keystore.jks -alias CARoot -import -file ca-cert
+keytool -keystore kafka.keystore.jks -alias localhost -import -file kafka-cert-signed
+
+Configure Your Brokers
+Copy the appropriate keystore to the home directory
+cp kafka.keystore.jks server.truststore.jks /home
+cd ~/
+sudo mkdir -p /var/private/ssl
+sudo mv server.truststore.jks /var/private/ssl/
+sudo mv kafka.keystore.jks /var/private/ssl/server.keystore.jks
+sudo chown -R root:root /var/private/ssl/
+
+configure SSL in server.properties .
+sudo nano /etc/kafka/server.properties
+
+Add the following line to the file (there is a commented version of this line that you can uncomment and edit if you desire).
+listeners=PLAINTEXT://localhost:9092,SSL://localhost:9093
+
+Find the line for advertised.listeners , and delete it or comment it out.
+#advertised.listeners=PLAINTEXT://localhost:9092
+
+Add the following lines. Enter the password values you used when generating the certificates and stores.
+ssl.keystore.location=/var/private/ssl/server.keystore.jks
+ssl.keystore.password=certificate
+ssl.key.password=certificate
+ssl.truststore.location=/var/private/ssl/server.truststore.jks
+ssl.truststore.password=certificate
+ssl.client.auth=none
+
+Restart Kafka
+sudo systemctl restart confluent-kafka
+
+Wait a few moments, then check the status of the Kafka service.
+sudo systemctl status confluent-kafka

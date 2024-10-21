@@ -1,0 +1,65 @@
+Do the following change in connect-distributed.properties
+nano etc/kafka/connect-distributed.properties
+
+Add the following lines
+listeners=http://0.0.0.0:8083
+rest.advertised.host.name=localhost
+rest.advertised.port=8083
+plugin.path=/usr/share/java,/usr/share/filestream-connectors,/usr/local/share/kafka/plugins,/usr/local/share/kafka/plugins/confluentinc-kafka-connect-jdbc-10.8.0
+
+Create a topic to use for testing.
+Create the input and output files.
+
+cd ~/
+touch output.txt
+chmod 777 output.txt
+
+Enter some data into the input file.
+vi input.txt
+
+Create a source connector to import data into Kafka from a file.
+
+curl -X POST http://localhost:8083/connectors \
+-H 'Accept: */*' \
+-H 'Content-Type: application/json' \
+-d '{
+"name": "file_source_connector",
+"config": {
+"connector.class": "org.apache.kafka.connect.file.FileStreamSourceConnector",
+"topic": "connect_topic",
+"file": "/home/mpshriveena/Desktop/Platformatory/trials/input.txt",
+"value.converter": "org.apache.kafka.connect.storage.StringConverter"
+}
+}'
+
+Get information about the source connector.
+
+curl http://localhost:8083/connectors/file_source_connector
+curl http://localhost:8083/connectors/file_source_connector/status
+
+Check the topic to verify the new data has appeared.
+
+kafka-topics --bootstrap-server localhost:9092 --create --topic connect_topic --partitions 1 --replicatio
+kafka-console-consumer --bootstrap-server localhost:9092 --topic connect_topic --from-beginning
+
+Create a sink connector to export data from Kafka to a file.
+
+curl -X POST http://localhost:8083/connectors \
+-H 'Accept: */*' \
+-H 'Content-Type: application/json' \
+-d '{
+"name": "file_sink_connector",
+"config": {
+"connector.class": "org.apache.kafka.connect.file.FileStreamSinkConnector",
+"topics": "connect_topic",
+"file": "/home/mpshriveena/Desktop/Platformatory/trials/output.txt",
+"value.converter": "org.apache.kafka.connect.storage.StringConverter"
+}
+}'
+
+Check the contents of the output file.
+cat /home/cloud_user/output.txt
+
+Delete both connectors to clean up.
+curl -X DELETE http://localhost:8083/connectors/file_source_connector
+curl -X DELETE http://localhost:8083/connectors/file_sink_connector

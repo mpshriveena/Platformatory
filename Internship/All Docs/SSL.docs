@@ -1,0 +1,25 @@
+Copy the client trust store to an appropriate location.
+sudo cp ~/certs/client.truststore.jks /var/private/ssl/
+sudo chown root:root /var/private/ssl/client.truststore.jks
+
+Connect to the cluster's non-secure port using a command line client.
+kafka-console-consumer --bootstrap-server zoo1:9092 --topic tls-test --from-beginning
+
+enable ssl.client.auth=required in server.properties
+
+Create a configuration file so you can easily use the SSL port with clients.
+cd ~/
+nano client-ssl.properties
+
+security.protocol=SSL
+ssl.truststore.location=/var/private/ssl/client.truststore.jks
+ssl.truststore.password=certificate
+
+ssl.keystore.location=/var/private/ssl/client.keystore.jks
+ssl.keystore.password=certificate
+ssl.key.password=certificate
+
+max.request.size=209715200
+
+Connect to the cluster's secure port using a command line client.
+kafka-console-consumer --bootstrap-server zoo1:9093 --topic tls-test --from-beginning --consumer.config c

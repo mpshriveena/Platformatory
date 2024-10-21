@@ -1,0 +1,35 @@
+Download JDBS Source and Sink Connector from Confluent Hub
+Create a JDBC connector to load data from the PostgreSQL database.
+
+Connect to postgresql
+Create inventory Database by following postgresql.sh
+
+curl -X POST http://localhost:8083/connectors -H "Content-Type: application/json" -d '{
+  "name": "jdbc_source_postgres",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSourceConnector",
+    "connection.url": "jdbc:postgresql://127.0.0.1:5432/inventory",
+    "connection.user": "postgres",
+    "connection.password": "postgres",
+    "mode":"timestamp",
+    "timestamp.column.name": "update_ts"
+  }
+}'
+
+List the topic. We should see a new topic called postgres-purchases.
+kafka-topics --bootstrap-server localhost:9092 --list
+
+Start a console consumer to read from the postgres-purchases topic:
+kafka-console-consumer --bootstrap-server localhost:9092 --topic postgres-purchases --from-beginning
+
+Insert a New Record for a Purchase of Plums and Observe What Happens to the Topic as a Result
+Log in to the PostgreSQL database server.
+Change to the postgres user and connect to the inventory database:
+
+sudo -i -u postgres
+psql
+\c inventory;
+    Insert a new record into the purchases table:
+INSERT INTO purchases (item_name, quantity, price) VALUES ('laptop',1,40000);
+
+This value can be viewed in Consumer

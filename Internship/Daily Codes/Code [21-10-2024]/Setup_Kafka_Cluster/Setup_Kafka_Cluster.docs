@@ -1,0 +1,39 @@
+Setup Kafka Cluster
+
+1) Start the docker
+sudo systemctl start docker
+2) Check the status of docker
+sudo systemctl status docker
+3) Install docker-compose if no present
+sudo apt install docker-compose
+4) Add USER if getting error
+sudo usermod -aG docker $USER
+5) Move to the directory where docker-compose file is present
+6) Now start the services mentioned in docker-compose file using following command
+sudo docker-compose up
+
+Doing operations like creating topics
+
+1) Execute the following command to open a terminal for kafka-1,2 and 3 and execute it.
+sudo docker exec -it kafka-1 /bin/bash
+sudo docker exec -it kafka-2 /bin/bash
+sudo docker exec -it kafka-3 /bin/bash
+type exit or press ctrl+d to exit from this terminal
+
+2) Find the list of topics in any broker to ensure everything is working fine
+[within docker, within respective terminal]
+kafka-topics --bootstrap-server localhost:9094 --list
+kafka-topics --bootstrap-server localhost:9095 --list
+kafka-topics --bootstrap-server localhost:9096 --list
+or
+[within docker, in other terminals]
+kafka-topics --bootstrap-server kafka-1:9092 --list
+kafka-topics --bootstrap-server kafka-2:9092 --list
+kafka-topics --bootstrap-server kafka-3:9092 --list
+The output will be similar to this
+__consumer_offsets
+_confluent-command
+_confluent-telemetry-metrics
+_confluent_balancer_api_state
+
+

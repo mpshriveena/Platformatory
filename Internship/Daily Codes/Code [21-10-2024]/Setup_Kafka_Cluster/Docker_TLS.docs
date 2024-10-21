@@ -1,0 +1,33 @@
+TLS 
+
+1) Navigate to certs folder
+cd /etc/kafka/certs
+
+2) Do this once
+openssl req -new -x509 -keyout ca-key -out ca-cert -days 365 -subj "/C=IN/ST=Karnataka/L=Uttarahalli/O=Platformatory/OU=Streaming/CN=Platformatory"
+keytool -keystore client.truststore.jks -alias CARoot -import -file ca-cert
+keytool -keystore server.truststore.jks -alias CARoot -import -file ca-cert
+
+3) For kafka-1
+keytool -keystore kafka-1.keystore.jks -alias kafka-1 -validity 365 -genkey -keyalg RSA -dname "CN=Platformatory/OU=Streaming/O=Platformatory/L=Uttarahalli/ST=Karnataka/C=IN" -ext san=dns:kafka-1,ip:127.0.0.1,ip:192.168.1.108
+keytool -keystore kafka-1.keystore.jks -alias kafka-1 -certreq -file kafka-1-cert-file
+echo subjectAltName = DNS:kafka-1,IP:127.0.0.1,IP:192.168.1.108 >> kafka-1-extfile.cnf
+keytool -keystore kafka-1.keystore.jks -alias CARoot -import -file ca-cert
+openssl x509 -req -CA ca-cert -CAkey ca-key -in kafka-1-cert-file -out kafka-1-cert-signed -days 365 -CAcreateserial
+keytool -keystore kafka-1.keystore.jks -alias kafka-1 -import -file kafka-1-cert-signed
+
+4) For kafka-2
+keytool -keystore kafka-2.keystore.jks -alias kafka-2 -validity 365 -genkey -keyalg RSA -dname "CN=Platformatory/OU=Streaming/O=Platformatory/L=Uttarahalli/ST=Karnataka/C=IN" -ext san=dns:kafka-2,ip:127.0.0.1,ip:192.168.1.108
+keytool -keystore kafka-2.keystore.jks -alias kafka-2 -certreq -file kafka-2-cert-file
+echo subjectAltName = DNS:kafka-2,IP:127.0.0.1,IP:192.168.1.108 >> kafka-2-extfile.cnf
+keytool -keystore kafka-2.keystore.jks -alias CARoot -import -file ca-cert
+openssl x509 -req -CA ca-cert -CAkey ca-key -in kafka-2-cert-file -out kafka-2-cert-signed -days 365 -CAcreateserial
+keytool -keystore kafka-2.keystore.jks -alias kafka-2 -import -file kafka-2-cert-signed
+
+5) For kafka-3
+keytool -keystore kafka-3.keystore.jks -alias kafka-3 -validity 365 -genkey -keyalg RSA -dname "CN=Platformatory/OU=Streaming/O=Platformatory/L=Uttarahalli/ST=Karnataka/C=IN" -ext san=dns:kafka-3,ip:127.0.0.1,ip:192.168.1.108
+keytool -keystore kafka-3.keystore.jks -alias kafka-3 -certreq -file kafka-3-cert-file
+echo subjectAltName = DNS:kafka-3,IP:127.0.0.1,IP:192.168.1.108 >> kafka-3-extfile.cnf
+keytool -keystore kafka-3.keystore.jks -alias CARoot -import -file ca-cert
+openssl x509 -req -CA ca-cert -CAkey ca-key -in kafka-3-cert-file -out kafka-3-cert-signed -days 365 -CAcreateserial
+keytool -keystore kafka-3.keystore.jks -alias kafka-3 -import -file kafka-3-cert-signed

@@ -1,0 +1,11 @@
+KSQL
+
+1) Start KSQLdb
+sudo systemctl start confluent-ksqldb
+sudo systemctl status confluent-ksqldb
+[remember to start zoo-keeper and kafka]
+
+2) Commands
+sudo ksql #Start a KSQL session
+SHOW TOPICS;
+PRINT 'inventory_purchases' FROM BEGINNING;

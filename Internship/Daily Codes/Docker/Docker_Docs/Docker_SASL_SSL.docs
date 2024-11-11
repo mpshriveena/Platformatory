@@ -1,0 +1,172 @@
+Implementation of SASL SSL in Docker Compose
+
+cd /etc/kafka/configs
+
+1) Create Client-1 SASL SSL Properties
+echo "security.protocol=SASL_SSL" > client-sasl-ssl-1.properties
+echo "sasl.mechanism=PLAIN" >> client-sasl-ssl-1.properties
+echo "sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \\" >> client-sasl-ssl-1.properties
+echo "    username=\"platformatory\" \\" >> client-sasl-ssl-1.properties
+echo "    password=\"platformatory\";" >> client-sasl-ssl-1.properties
+echo "ssl.truststore.location=/etc/kafka/secrets/client-1.truststore.jks" >> client-sasl-ssl-1.properties
+echo "ssl.truststore.password=certificate" >> client-sasl-ssl-1.properties
+echo "ssl.keystore.location=/etc/kafka/secrets/client-1.keystore.jks" >> client-sasl-ssl-1.properties
+echo "ssl.keystore.password=certificate" >> client-sasl-ssl-1.properties
+echo "ssl.key.password=certificate" >> client-sasl-ssl-1.properties
+echo "max.request.size=209715200" >> client-sasl-ssl.properties
+
+2) Create Client-2 SASL SSL Properties
+echo "security.protocol=SASL_SSL" > client-sasl-ssl-2.properties
+echo "sasl.mechanism=PLAIN" >> client-sasl-ssl-2.properties
+echo "sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \\" >> client-sasl-ssl-2.properties
+echo "    username=\"platformatory\" \\" >> client-sasl-ssl-2.properties
+echo "    password=\"platformatory\";" >> client-sasl-ssl-2.properties
+echo "ssl.truststore.location=/etc/kafka/secrets/client-2.truststore.jks" >> client-sasl-ssl-2.properties
+echo "ssl.truststore.password=certificate" >> client-sasl-ssl-2.properties
+echo "ssl.keystore.location=/etc/kafka/secrets/client-2.keystore.jks" >> client-sasl-ssl-2.properties
+echo "ssl.keystore.password=certificate" >> client-sasl-ssl-2.properties
+echo "ssl.key.password=certificate" >> client-sasl-ssl-2.properties
+echo "max.request.size=209715200" >> client-sasl-ssl-2.properties
+
+3) Create Client-3 SASL SSL Properties
+echo "security.protocol=SASL_SSL" > client-sasl-ssl-3.properties
+echo "sasl.mechanism=PLAIN" >> client-sasl-ssl-3.properties
+echo "sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \\" >> client-sasl-ssl-3.properties
+echo "    username=\"platformatory\" \\" >> client-sasl-ssl-3.properties
+echo "    password=\"platformatory\";" >> client-sasl-ssl-3.properties
+echo "ssl.truststore.location=/etc/kafka/secrets/client-3.truststore.jks" >> client-sasl-ssl-3.properties
+echo "ssl.truststore.password=certificate" >> client-sasl-ssl-3.properties
+echo "ssl.keystore.location=/etc/kafka/secrets/client-3.keystore.jks" >> client-sasl-ssl-3.properties
+echo "ssl.keystore.password=certificate" >> client-sasl-ssl-3.properties
+echo "ssl.key.password=certificate" >> client-sasl-ssl-3.properties
+echo "max.request.size=209715200" >> client-sasl-ssl-3.properties
+
+4) Create Server JAAS Configuration
+# Don't need to do below if already created this file when doing sasl-plaintext
+echo "KafkaServer {" >> kafka_server_jaas.conf
+echo "    org.apache.kafka.common.security.plain.PlainLoginModule required" >> kafka_server_jaas.conf
+echo "    username=\"platformatory\"" >> kafka_server_jaas.conf
+echo "    password=\"platformatory\"" >> kafka_server_jaas.conf
+echo "    user_platformatory=\"platformatory\";" >> kafka_server_jaas.conf
+echo "};" >> kafka_server_jaas.conf
+
+5) Update Docker Compose and rebuild it
+version: '3.7'
+services:
+  zookeeper:
+    image: 'confluentinc/cp-zookeeper'
+    container_name: zookeeper
+    ports:
+      - '2182:2181'
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SASL_ENABLED: 'false'
+    volumes:
+      - ~/kafka/data/zookeeper_data:/var/lib/zookeeper/data
+      - ~/kafka/data/zookeeper_log:/var/lib/zookeeper/log
+    restart: always
+  kafka-1:
+    image: 'confluentinc/cp-server:latest'
+    container_name: kafka-1
+    depends_on:
+      - zookeeper
+    ports:
+      - '9094:9094'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      ZOOKEEPER_SASL_ENABLED: 'false'
+      KAFKA_JVM_PERFORMANCE_OPTS: "-Xms1G -Xmx2G"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9094,INTERNAL://kafka-1:9092,SASL_SSL://kafka-1:9098
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT,SASL_SSL:SASL_SSL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9094,INTERNAL://0.0.0.0:9092,SASL_SSL://0.0.0.0:9098
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/configs/kafka_server_jaas.conf"
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_SECURITY_INTER_BROKER_PROTOCOL: SASL_SSL
+      KAFKA_SSL_KEYSTORE_FILENAME: kafka-1.keystore.jks
+      KAFKA_SSL_KEY_CREDENTIALS: key-password.txt
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: keystore-password.txt
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: truststore-password.txt
+      KAFKA_SSL_TRUSTSTORE_FILENAME: kafka-1.truststore.jks
+      KAFKA_SSL_CLIENT_AUTH: 'required'
+    volumes:
+      - kafka-1-data:/var/lib/kafka/data
+      - ./certs:/etc/kafka/secrets
+      - ./configs:/etc/kafka/configs      
+    restart: always
+  kafka-2:
+    image: 'confluentinc/cp-server:latest'
+    container_name: kafka-2
+    depends_on:
+      - zookeeper
+      - kafka-1
+    ports:
+      - '9095:9095'
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      ZOOKEEPER_SASL_ENABLED: 'false'
+      KAFKA_JVM_PERFORMANCE_OPTS: "-Xms1G -Xmx2G"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9095,INTERNAL://kafka-2:9092,SASL_SSL://kafka-2:9098
+      KAFKA_SECURITY_INTER_BROKER_PROTOCOL: SASL_SSL
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT,SASL_SSL:SASL_SSL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9095,INTERNAL://0.0.0.0:9092,SASL_SSL://0.0.0.0:9098
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/configs/kafka_server_jaas.conf"
+      KAFKA_SSL_KEYSTORE_FILENAME: kafka-2.keystore.jks
+      KAFKA_SSL_KEY_CREDENTIALS: key-password.txt
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: keystore-password.txt
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: truststore-password.txt
+      KAFKA_SSL_TRUSTSTORE_FILENAME: kafka-2.truststore.jks
+      KAFKA_SSL_CLIENT_AUTH: 'required'
+    volumes:
+      - kafka-2-data:/var/lib/kafka/data
+      - ./certs:/etc/kafka/secrets
+      - ./configs:/etc/kafka/configs
+    restart: always
+  kafka-3:
+    image: 'confluentinc/cp-server:latest'
+    container_name: kafka-3
+    depends_on:
+      - zookeeper
+      - kafka-1
+      - kafka-2
+    ports:
+      - '9096:9096'
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      ZOOKEEPER_SASL_ENABLED: 'false'
+      KAFKA_JVM_PERFORMANCE_OPTS: "-Xms1G -Xmx2G"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9096,INTERNAL://kafka-3:9092,SASL_SSL://kafka-3:9098
+      KAFKA_SECURITY_INTER_BROKER_PROTOCOL: SASL_SSL
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT,SASL_SSL:SASL_SSL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9096,INTERNAL://0.0.0.0:9092,SASL_SSL://0.0.0.0:9098
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/configs/kafka_server_jaas.conf"
+      KAFKA_SSL_KEYSTORE_FILENAME: kafka-3.keystore.jks
+      KAFKA_SSL_KEY_CREDENTIALS: key-password.txt
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: keystore-password.txt
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: truststore-password.txt
+      KAFKA_SSL_TRUSTSTORE_FILENAME: kafka-3.truststore.jks
+      KAFKA_SSL_CLIENT_AUTH: 'required'
+    volumes:
+      - kafka-3-data:/var/lib/kafka/data
+      - ./certs:/etc/kafka/secrets
+      - ./configs:/etc/kafka/configs
+    restart: always
+volumes:
+  kafka-1-data:
+  kafka-2-data:
+  kafka-3-data:
+
+6) Run
+kafka-console-consumer --bootstrap-server kafka-1:9098 --topic sasl-test --from-beginning --consumer.config /etc/kafka/configs/client-sasl-ssl-1.properties
+

@@ -1,0 +1,116 @@
+Setup Kafka Cluster
+
+1) Start the docker
+sudo systemctl start docker
+2) Check the status of docker
+sudo systemctl status docker
+3) Install docker-compose if no present
+sudo apt install docker-compose
+4) Add USER if getting error
+sudo usermod -aG docker $USER
+5) Move to the directory where docker-compose file is present. If not, create one
+version: '3.7'
+services:
+  zookeeper:
+    image: 'confluentinc/cp-zookeeper'
+    container_name: zookeeper
+    ports:
+      - '2182:2181'
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    volumes:
+      - ./certs:/etc/zookeeper/secrets
+    restart: always
+  kafka-1:
+    image: 'confluentinc/cp-server:latest'
+    container_name: kafka-1
+    depends_on:
+      - zookeeper
+    ports:
+      - '9094:9094'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9094,INTERNAL://kafka-1:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+    volumes:
+      - kafka-1-data:/var/lib/kafka/data
+      - ./certs:/etc/kafka/secrets
+      - ./configs:/etc/kafka/configs   
+    restart: always
+  kafka-2:
+    image: 'confluentinc/cp-server:latest'
+    container_name: kafka-2
+    depends_on:
+      - zookeeper
+      - kafka-1
+    ports:
+      - '9095:9095'
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9095,INTERNAL://kafka-2:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+    volumes:
+      - kafka-2-data:/var/lib/kafka/data
+      - ./certs:/etc/kafka/secrets
+      - ./configs:/etc/kafka/configs
+    restart: always
+  kafka-3:
+    image: 'confluentinc/cp-server:latest'
+    container_name: kafka-3
+    depends_on:
+      - zookeeper
+      - kafka-1
+      - kafka-2
+    ports:
+      - '9096:9096'
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9096,INTERNAL://kafka-3:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+    volumes:
+      - kafka-3-data:/var/lib/kafka/data
+      - ./certs:/etc/kafka/secrets
+      - ./configs:/etc/kafka/configs
+    restart: always
+volumes:
+  kafka-1-data:
+  kafka-2-data:
+  kafka-3-data:
+
+6) Now start the services mentioned in docker-compose file using following command
+sudo docker-compose up
+
+Doing operations like creating topics
+
+1) Execute the following command to open a terminal for kafka-1,2 and 3 and execute it.
+sudo docker exec -u root -it kafka-1 /bin/bash
+sudo docker exec -u root -it kafka-2 /bin/bash
+sudo docker exec -u root -it kafka-3 /bin/bash
+type exit or press ctrl+d to exit from this terminal
+
+2) Find the list of topics in any broker to ensure everything is working fine
+[within docker, within respective terminal]
+kafka-topics --bootstrap-server localhost:9094 --list
+kafka-topics --bootstrap-server localhost:9095 --list
+kafka-topics --bootstrap-server localhost:9096 --list
+or
+[within docker, in other terminals]
+kafka-topics --bootstrap-server kafka-1:9092 --list
+kafka-topics --bootstrap-server kafka-2:9092 --list
+kafka-topics --bootstrap-server kafka-3:9092 --list
+The output will be similar to this
+__consumer_offsets
+_confluent-command
+_confluent-telemetry-metrics
+_confluent_balancer_api_state
+
+

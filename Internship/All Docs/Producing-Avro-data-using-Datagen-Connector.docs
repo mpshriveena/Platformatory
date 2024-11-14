@@ -1,0 +1,35 @@
+Producing Avro data using Datagen connector
+
+1) Download the Datagen Connector from Confluent and unzip it
+
+2) Move the unzipped folder to /usr/local/share/kafka/plugins/
+
+3) Add or edit the following line in /etc/kafka/connect-distributed.properties
+plugin.path=/usr/share/java,/usr/share/filestream-connectors,/usr/local/share/kafka/plugins,/usr/local/share/kafka/plugins/confluentinc-kafka-connect-jdbc-10.8.0,/usr/local/share/kafka/plugins/confluentinc-kafka-connect-datagen-0.6.6
+
+4) Run the following commands
+sudo systemctl start confluent-zookeeper
+sudo systemctl start confluent-kafka
+sudo systemctl start confluent-kafka-connect
+sudo systemctl start confluent-schema-registry
+
+5) Execute the following curl command
+curl -X POST http://localhost:8083/connectors \
+-H 'Accept: */*' \
+-H 'Content-Type: application/json' \
+-d '{
+"name": "avro-datagen-1",
+"config": {
+"connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+"tasks.max": "1",
+"kafka.topic": "avro_topic1",
+"schema.string": "{\"type\":\"record\",\"name\":\"User\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":\"int\"}]}",
+"max.interval": "1000",
+"iterations": "10000",
+"value.converter.schemas.enable": "true",
+"schema.registry.url": "http://localhost:8081"
+}
+}'
+
+6) Verify the contents of the topic using following command
+kafka-console-consumer --bootstrap-server localhost:9092 --topic avro_topic1 --from-beginning --property print.key=true

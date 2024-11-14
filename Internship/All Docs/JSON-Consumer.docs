@@ -1,0 +1,144 @@
+JSON Consumer using Maven
+A consumer to print all JSON data produced by the JSON producer using Maven
+
+1) Create a maven project
+mvn archetype:generate -DgroupId=com.platformatory -DartifactId=json-consumer -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+cd json-consumer [Folder where pom file is located]
+
+2) Update the pom.xml file as follows
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.platformatory</groupId>
+  <artifactId>json-consumer</artifactId>
+  <packaging>jar</packaging>
+  <version>1.0-SNAPSHOT</version>
+  <name>json-consumer</name>
+  <url>http://maven.apache.org</url>
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>3.8.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>3.5.0</version>
+  </dependency>
+  <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.13.3</version>
+  </dependency>
+  <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>2.0.0</version>
+  </dependency>
+  <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.8.2</version>
+      <scope>test</scope>
+  </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.1</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <mainClass>com.platformatory.Main</mainClass>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+
+3) Update the App.java file as follows
+package com.platformatory;
+
+import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.util.Properties;
+class Person {
+    private String name;
+    private int age;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public int getAge() {
+        return age;
+    }
+
+    public void setAge(int age) {
+        this.age = age;
+    }
+}
+
+public class App {
+    public static void main(String[] args) {
+        Properties props = new Properties();
+        props.put("bootstrap.servers", "localhost:9092");
+        props.put("group.id", "json-group-4");
+        props.put("auto.offset.reset", "earliest");
+        props.put("key.deserializer", StringDeserializer.class.getName());
+        props.put("value.deserializer", StringDeserializer.class.getName());
+        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
+        consumer.subscribe(java.util.Collections.singletonList("json-data"));
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            while (true) {
+                ConsumerRecords<String, String> records = consumer.poll(1000);
+                for (ConsumerRecord<String, String> record : records) {
+                    String jsonString = record.value();
+                    try {
+                        Person person = objectMapper.readValue(jsonString, Person.class);
+                        System.out.println("Consumed: Name = " + person.getName() + ", Age = " + person.getAge());
+                    } catch (IOException e) {
+                        System.err.println("Error deserializing JSON: " + e.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            consumer.close();
+        }
+    }
+}
+
+4) Clean and compile the project
+mvn clean install
+
+5) Execute the project
+mvn exec:java -Dexec.mainClass="com.platformatory.App"
+

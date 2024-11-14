@@ -1,0 +1,174 @@
+Avro Consumer using Maven
+A consumer to consume the avro data produced by the avro producer using maven
+
+1) Create a maven project
+mvn archetype:generate -DgroupId=com.platformatory -DartifactId=avro-consumer -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+cd avro-consumer [Folder where pom file is located]
+
+2) Update the pom.xml file as follows
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.platformatory</groupId>
+  <artifactId>avro-consumer</artifactId>
+  <packaging>jar</packaging>
+  <version>1.0-SNAPSHOT</version>
+  <name>avro-consumer</name>
+  <url>http://maven.apache.org</url>
+  <repositories>
+    <repository>
+        <id>confluent</id>
+        <url>https://packages.confluent.io/maven/</url>
+    </repository>
+</repositories>
+<dependencies>
+  <dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+    <version>2.13.0</version>
+</dependency>
+  <dependency>
+    <groupId>org.apache.avro</groupId>
+    <artifactId>avro</artifactId>
+    <version>1.11.1</version>
+  </dependency>
+  <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-avro-serializer</artifactId>
+      <version>6.2.1</version>
+  </dependency>
+  <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>3.3.1</version>
+  </dependency>
+  <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-schema-registry-client</artifactId>
+      <version>6.2.1</version>
+  </dependency>
+  <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-api</artifactId>
+        <version>5.7.2</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-engine</artifactId>
+        <version>5.7.2</version>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+
+  <build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro-maven-plugin</artifactId>
+            <version>1.11.0</version>
+            <executions>
+                <execution>
+                    <goals>
+                        <goal>schema</goal>
+                    </goals>
+                    <configuration>
+                        <sourceDirectory>${project.basedir}/src/main/avro</sourceDirectory>
+                        <outputDirectory>${project.build.directory}/generated-sources/avro</outputDirectory>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.8.1</version>
+          <configuration>
+              <source>11</source>
+              <target>11</target>
+              <generatedSourcesDirectory>${project.build.directory}/generated-sources/avro</generatedSourcesDirectory>
+          </configuration>
+      </plugin>
+    </plugins>
+</build>
+</project>
+
+3) Create an avro directory inside main directory and create User.avsc file to create schema
+{
+  "type": "record",
+  "name": "User",
+  "namespace": "com.platformatory",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int"
+    },
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "age",
+      "type": "int"
+    }
+  ]
+}
+
+4) Update the App.java file as follows
+package com.platformatory;
+
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.Properties;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+public class App {
+    public static void main(String[] args) {
+        final Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "group1");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "http://localhost:8081");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class);
+        props.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, true);
+        KafkaConsumer<String, User> consumer = new KafkaConsumer<>(props);
+        consumer.subscribe(Collections.singletonList("avro_java_topic"));
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter("/home/mpshriveena/Desktop/Platformatory/trials/output.txt", true));
+            while (true) {
+                final ConsumerRecords<String, User> records = consumer.poll(Duration.ofMillis(100));
+                for (final ConsumerRecord<String, User> record : records) {
+                    final String key = record.key();
+                    final User value = record.value();
+                    String outputString = "key=" + key + ", value=" + value;
+                    System.out.println(outputString);
+                    writer.write(outputString + "\n");
+                }
+                writer.flush();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+
+5) Clean and compile the project
+mvn clean install
+
+6) Ensure a file named User.java is created inside thegenerated-sources in target directory
+
+7) Execute the project
+mvn exec:java -Dexec.mainClass="com.platformatory.App"

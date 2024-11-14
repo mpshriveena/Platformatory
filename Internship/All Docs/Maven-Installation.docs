@@ -1,0 +1,512 @@
+1) Install Maven
+sudo apt update #update
+sudo apt install maven #install maven
+mvn -v #Verify Installation
+
+Task 1
+
+mvn archetype:generate -DgroupId=com.platformatory -DartifactId=producer -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+cd producer [Folder where pom file is located]
+mvn clean install
+mvn exec:java -Dexec.mainClass="com.platformatory.App"
+
+mvn archetype:generate -DgroupId=com.platformatory -DartifactId=consumer -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+cd consumer [Folder where pom file is located]
+mvn clean install
+mvn exec:java -Dexec.mainClass="com.platformatory.App"
+
+Task 2
+
+i)
+mvn archetype:generate -DgroupId=com.platformatory -DartifactId=json-producer -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+cd json-producer [Folder where pom file is located]
+mvn clean install
+mvn exec:java -Dexec.mainClass="com.platformatory.App"
+
+ii)
+mvn archetype:generate -DgroupId=com.platformatory -DartifactId=json-consumer -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+cd json-consumer [Folder where pom file is located]
+mvn clean install
+mvn exec:java -Dexec.mainClass="com.platformatory.App"
+
+[
+  {"name": "Manikandan", "age": 53},
+  {"name": "Pushparani", "age": 51},
+  {"name": "Shri Veena", "age": 22},
+  {"name": "Shri Vithish", "age": 14}
+]
+
+Task 3
+
+mvn archetype:generate -DgroupId=com.platformatory -DartifactId=avro-consumer -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+cd avro-consumer [Folder where pom file is located]
+mvn clean install
+mvn exec:java -Dexec.mainClass="com.platformatory.App"
+
+mvn archetype:generate -DgroupId=com.platformatory -DartifactId=avro-producer -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+cd avro-producer [Folder where pom file is located]
+mvn clean install
+mvn exec:java -Dexec.mainClass="com.platformatory.App"
+
+mvn archetype:generate -DgroupId=com.platformatory -DartifactId=avro-datagen-consumer -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+cd avro-datagen-consumer [Folder where pom file is located]
+mvn clean install
+mvn exec:java -Dexec.mainClass="com.platformatory.App"
+
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.platformatory</groupId>
+  <artifactId>avro-consumer</artifactId>
+  <packaging>jar</packaging>
+  <version>1.0-SNAPSHOT</version>
+  <name>avro-consumer</name>
+
+  <repositories>
+    <repository>
+        <id>confluent</id>
+        <url>https://packages.confluent.io/maven/</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+    <!-- Avro Library for general Avro support -->
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>1.11.1</version>
+    </dependency>
+
+    <!-- Kafka Client (to interact with Kafka brokers) -->
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>3.3.1</version>
+    </dependency>
+
+    <!-- Confluent Schema Registry Client for managing Avro schemas -->
+    <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-schema-registry-client</artifactId>
+      <version>6.2.1</version>
+    </dependency>
+
+    <!-- Confluent Kafka Avro Serializer (for serializing/deserializing Avro data) -->
+    <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-avro-serializer</artifactId>
+      <version>6.2.1</version>
+    </dependency>
+
+    <!-- JUnit dependencies (for testing purposes, optional if not used) -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.7.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>5.7.2</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Avro Maven Plugin to generate Java classes from Avro schema -->
+      <plugin>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro-maven-plugin</artifactId>
+        <version>1.11.0</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>schema</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>${project.basedir}/src/main/avro</sourceDirectory> <!-- Avro schema directory -->
+              <outputDirectory>${project.build.directory}/generated-sources/avro</outputDirectory> <!-- Output directory for generated Java classes -->
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Maven Compiler Plugin to compile the generated classes -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.1</version>
+        <configuration>
+          <source>11</source> <!-- Java version -->
+          <target>11</target> <!-- Java version -->
+          <generatedSourcesDirectory>${project.build.directory}/generated-sources/avro</generatedSourcesDirectory> <!-- Directory for generated Avro classes -->
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+
+import org.apache.avro.generic.GenericRecord;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.Deserializer;
+import java.util.Properties;
+import java.util.List;
+import java.time.Duration;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+public class AvroConsumer {
+    public static void main(String[] args) {
+        String bootstrapServers = "localhost:9092";
+        String groupId = "avro-consumer-group-3";
+        String topic = "avro_topic";
+
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        props.put("auto.offset.reset", "earliest");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
+        props.put("schema.registry.url", "http://localhost:8081");
+
+        KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(props);
+
+        consumer.subscribe(List.of(topic));
+        System.out.println("Consuming messages...");
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        while (true) {
+            var records = consumer.poll(Duration.ofMillis(1000));
+
+            records.forEach(record -> {
+                try {
+                    // Deserialize the payload from the record
+                    String value = new String(record.value());
+                    JsonNode jsonNode = objectMapper.readTree(value);
+                    JsonNode payload = jsonNode.get("payload");
+
+                    // Access individual fields from the payload
+                    String name = payload.get("name").asText();
+                    int age = payload.get("age").asInt();
+
+                    // Print the result
+                    System.out.println("Received message: ");
+                    System.out.println("Name: " + name);
+                    System.out.println("Age: " + age);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+}
+
+
+
+{
+  "type": "record",
+  "name": "User",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "age",
+      "type": "int"
+    }
+  ]
+}
+
+
+
+
+
+{
+  "name": "avro-datagen-source",
+  "config": {
+    "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+    "tasks.max": "1",
+    "kafka.topic": "avro_topic",
+    "value.schema": "{\"type\":\"record\",\"name\":\"User\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":\"int\"}]}",
+    "key.schema": "{\"type\":\"string\"}",
+    "max.interval": "1000",
+    "iterations": "10000",
+    "schema.registry.url": "http://localhost:8081"
+  }
+}
+
+curl -X POST http://localhost:8083/connectors \
+-H 'Accept: */*' \
+-H 'Content-Type: application/json' \
+-d '{
+"name": "avro-datagen-source",
+"config": {
+"connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+"topic": "avro_topic",
+"key.schema": "{\"type\":\"string\"}",
+"value.schema": "{\"type\":\"record\",\"name\":\"User\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":\"int\"}]}",
+"max.interval": "1000",
+"iterations": "10000",
+}
+}'
+
+curl -X POST http://localhost:8083/connectors \
+-H 'Accept: */*' \
+-H 'Content-Type: application/json' \
+-d '{
+"name": "avro-datagen-source",
+"config": {
+"connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+"tasks.max": "1",
+"kafka.topic": "avro_topic",
+"schema.string": "{\"type\":\"record\",\"name\":\"User\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":\"int\"}]}",
+"max.interval": "1000",
+"iterations": "10000",
+"schema.registry.url": "http://localhost:8081"
+}
+}'
+
+
+curl -X POST http://localhost:8083/connectors \
+-H 'Accept: */*' \
+-H 'Content-Type: application/json' \
+-d '{
+"name": "avro-datagen-source",
+"config": {
+"connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+"tasks.max": "1",
+"kafka.topic": "avro_topic",
+"schema.string": "{\"type\":\"record\",\"name\":\"User\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":\"int\"}]}",
+"max.interval": "1000",
+"iterations": "10000",
+"schema.registry.url": "http://localhost:8081"
+}
+}' I produced data to this topic using datagen source can you provide me consumer code using java maven for this to consume and pom 
+
+package com.example.kafka.consumer;
+
+import org.apache.avro.generic.GenericRecord;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+
+public class AvroKafkaConsumer {
+
+    public static void main(String[] args) {
+
+        // Kafka configuration
+        String bootstrapServers = "localhost:9092";
+        String groupId = "avro-consumer-group";
+        String topic = "avro_topic";
+        String schemaRegistryUrl = "http://localhost:8081";
+
+        // Consumer configuration
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
+        props.put(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
+        props.put(KafkaAvroDeserializerConfig.VALUE_SUBJECT_NAME_STRATEGY, "io.confluent.kafka.serializers.subject.RecordNameStrategy");
+
+        // Create KafkaConsumer instance
+        KafkaConsumer<String, GenericRecord> consumer = new KafkaConsumer<>(props);
+
+        // Subscribe to topic
+        consumer.subscribe(java.util.Collections.singletonList(topic));
+
+        // Poll and consume messages
+        try {
+            while (true) {
+                var records = consumer.poll(1000); // poll for new records every second
+                records.forEach(record -> {
+                    // Deserialize the message and print it
+                    GenericRecord avroRecord = record.value();
+                    System.out.println("Consumed record: " + avroRecord);
+                });
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            consumer.close();
+        }
+    }
+}
+
+curl -i -X PUT http://localhost:8083/connectors/datagen_local_01/config \
+     -H "Content-Type: application/json" \
+     -d '{
+            "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+            "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "kafka.topic": "pageviews",
+            "quickstart": "pageviews",
+            "max.interval": 1000,
+            "iterations": 10000000,
+            "tasks.max": "1"
+        }'
+
+curl -i -X PUT http://localhost:8083/connectors/datagen_local_03/config \
+     -H "Content-Type: application/json" \
+     -d '{
+            "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+            "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "value.converter": "io.confluent.connect.avro.AvroConverter",
+            "kafka.topic": "pageviews",
+            "quickstart": "pageviews",
+            "max.interval": 1000,
+            "iterations": 10000000,
+            "tasks.max": "1"
+        }'
+
+curl -i -X PUT http://localhost:8083/connectors/datagen-pageviews-01/config \
+     -H "Content-Type: application/json" \
+     -d '{
+            "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+            "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+            "kafka.topic": "pageviews",
+            "quickstart": "pageviews",
+            "value.converter.schemas.enable": "false",
+            "max.interval": 100,
+            "iterations": 10000000,
+            "tasks.max": "1"
+        }'
+
+KafkaAvroDeserializer
+
+curl -i -X PUT http://localhost:8083/connectors/datagen_local_04/config \
+     -H "Content-Type: application/json" \
+     -d '{
+            "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+            "key.converter": "io.confluent.connect.avro.AvroConverter",
+            "value.converter": "io.confluent.connect.avro.AvroConverter",
+            "kafka.topic": "pageviews",
+            "quickstart": "pageviews",
+            "max.interval": 1000,
+            "iterations": 10000000,
+            "tasks.max": "1"
+        }'
+
+{
+  "type": "record",
+  "name": "Newavro",
+  "fields": [
+    {
+      "name": "user_id",
+      "type": "string"
+    },
+    {
+      "name": "page_id",
+      "type": "string"
+    }
+  ]
+}
+
+curl -i -X PUT http://localhost:8083/connectors/datagen_local_06/config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+    "key.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "kafka.topic": "pageviews",
+    "quickstart": "pageviews",
+    "max.interval": 1000,
+    "iterations": 10000000,
+    "tasks.max": "1",
+    "schema.registry.url": "http://localhost:8081",
+    "key.schema": "{\"type\":\"string\"}",
+    "value.schema": "{\"type\":\"record\",\"name\":\"Pageview\",\"fields\":[{\"name\":\"user_id\",\"type\":\"string\"},{\"name\":\"page_id\",\"type\":\"string\"}]}"
+  }'
+
+curl -i -X PUT http://localhost:8083/connectors/datagen_local_07/config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+    "key.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "kafka.topic": "pageviews",
+    "quickstart": "pageviews",
+    "max.interval": 1000,
+    "iterations": 10000000,
+    "tasks.max": "1",
+    "schema.registry.url": "http://localhost:8081",
+  }'
+curl -i -X PUT http://localhost:8083/connectors/datagen_local_07/config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+    "key.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "kafka.topic": "pageviews",
+    "quickstart": "pageviews",
+    "max.interval": 1000,
+    "iterations": 10000000,
+    "tasks.max": "1",
+    "schema.registry.url": "http://localhost:8081"
+  }'
+
+curl -i -X PUT http://localhost:8083/connectors/datagen_local_01/config \
+     -H "Content-Type: application/json" \
+     -d '{
+            "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+            "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "kafka.topic": "pageviews",
+            "quickstart": "pageviews",
+            "max.interval": 1000,
+            "iterations": 10000000,
+            "tasks.max": "1",
+            "value.converter.schemas.enable": "true",
+            "schema.registry.url": "http://localhost:8081"    
+        }'
+
+curl -X PUT http://localhost:8083/connectors/datagen_local_01/config \
+  -H "Content-Type: application/json" \
+  -d '{
+      "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+      "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+      "value.converter": "io.confluent.connect.avro.AvroConverter",
+      "kafka.topic": "pageviews",
+      "quickstart": "pageviews",
+      "max.interval": 1000,
+      "iterations": 10000000,
+      "tasks.max": "1",
+      "value.converter.schemas.enable": "true",
+      "schema.registry.url": "http://localhost:8081",
+      "key.schema": "{\"type\":\"string\"}",
+      "value.schema": "{\"type\":\"record\",\"name\":\"Pageview\",\"fields\":[{\"name\":\"user_id\",\"type\":\"string\"},{\"name\":\"page_id\",\"type\":\"string\"}]}"
+  }'
+
+curl -X POST http://localhost:8083/connectors \
+-H 'Accept: */*' \
+-H 'Content-Type: application/json' \
+-d '{
+"name": "avro-datagen-1",
+"config": {
+"connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+"tasks.max": "1",
+"kafka.topic": "avro_topic1",
+"schema.string": "{\"type\":\"record\",\"name\":\"User\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":\"int\"}]}",
+"max.interval": "1000",
+"iterations": "10000",
+"value.converter.schemas.enable": "true",
+"schema.registry.url": "http://localhost:8081"
+}
+}'

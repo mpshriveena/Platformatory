@@ -1,0 +1,61 @@
+Temporal 101 with Python
+
+Chapter 2: Goals
+
+What is Temporal?
+Temporal is a platform that guarantees the durable execution of your application code. It allows us to develop as if failures don't even exist. Your application will run reliably even if it encounters problems, such as network outages or server crashes, which would be catastrophic for a typical application. The Temporal platform handles these types of problems, allowing you to focus on the business logic, instead of writing application code to detect and recover from failures.
+
+Workflows
+Temporal applications are built using an abstraction called Workflows. We'll develop those Workflows by writing code in a general-purpose programming language such as Go, Java, TypeScript, or Python. The code you write is the same code that will be executed at runtime, so we can use our favorite tools and libraries to develop Temporal Workflows.
+Temporal Workflows are resilient. They can run—and keeping running—for years, even if the underlying infrastructure fails. If the application itself crashes, Temporal will automatically recreate its pre-failure state so it can continue right where it left off.
+Workflow --> Sequence of Steps
+Steps --> Code --> Workflow definition
+Run --> Workflow execution
+Workflow Example: Expense Report
+
+Architectural Overview
+Temporal Platform consistes of two parts
+    1) Temporal Server
+            The Temporal Server consists of a frontend service, plus several backend services that work together to manage the execution of your application code
+    2) clients  
+            Three types of clients
+                1) Temporal's command-line interface (CLI)
+                2) Temporal's web-based user interface (Web UI)
+                3) A Temporal Client embedded into the applications you run
+Client --> Request --> Frontend --> Backend --> Frontend --> Response --> Client
+All communications can be secured with TLS
+Note : The frontend service that is part of the Temporal Server acts as an API gateway. In other words, it is a frontend for clients, not end users (end users will interact with the CLI or Web UI)
+
+Temporal cluster
+Deployment of Temporal Server on some number of machines with additional components
+The only required component is a database
+
+Workers
+Temporal Cluster does not execute your code
+Durable Execution is attained through orchestration
+Executing Code --> Workers
+Multiple Servers --> Scalability, availability
+
+Worker Connectivity
+Since the Worker uses a Temporal Client to communicate with the Temporal Cluster, each machine running a Worker will require connectivity to the Cluster’s Frontend Service, which listens on TCP port 7233 by default.
+
+Run Temporal Cluster
+Ways to run temporal cluster
+    1) Self Hosted [Two ways]
+        --> Docker Compose
+        --> Local Development Environment
+        Often run on Kubernetes
+    2) Temporal Cloud
+        Fully managed cloud service
+
+Integrating Temporal into Other Applications
+    1) Direct Integration in Application Frontend
+    2) Integration through a Backend Application
+
+What is an SDK?
+OUr code will make calls to Temporal APIs, which in turn use a Temporal Client to communicate with the cluster. The library that provides support for this is called a Software Development Kit, or SDK
+
+What is temporal(command)?
+    --> Interact with the temporal cluster
+    --> Start Development server
+    temporal workflow list # to list the workflows

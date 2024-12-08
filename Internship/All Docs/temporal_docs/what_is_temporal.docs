@@ -1,0 +1,25 @@
+Task 1 : What is Temporal?
+
+What is Temporal?
+Temporal is an open-source, stateful orchestration platform designed to simplify and manage the execution of long-running workflows in microservice architectures. It provides fault-tolerant, scalable, and reliable execution of workflows, where workflows can be defined as code and activities that need to be performed as part of a larger system.
+Temporal allows developers to focus on defining the logic of their business processes while it handles the execution, retries, state management, and scaling of those workflows.
+
+Key Features of Temporal
+    *Stateful Workflows: Temporal enables workflows to maintain their state across activity executions, retries, and failures. This makes it perfect for long-running workflows or tasks that need to span days or even months.
+    *Fault Tolerance: Temporal automatically handles failures. If a workflow or activity fails, Temporal ensures that the workflow will resume from where it left off, without losing data. It guarantees at-least-once delivery of tasks.
+    *Scalability: Temporal can scale horizontally by distributing workloads across multiple workers, handling a massive number of workflows simultaneously.
+    *Durability: Temporal ensures that no workflow execution is lost. It persists the workflow state in its database, allowing for recovery from failures.
+    *Timeouts and Retries: Temporal provides built-in support for setting timeouts and retry policies for workflows and activities, making workflows resilient to external system failures.
+
+How Temporal Works?
+Temporal is designed around the concept of workflows and activities:
+    *Workflows: The workflows define the business logic and the steps needed to complete a process. They are stateful and can run indefinitely. Temporal tracks each workflow execution and stores the state.
+    *Activities: These are individual tasks that are executed as part of a workflow. Each activity can be a network call, database operation, or any piece of business logic that can run independently.
+    *Workers: Workers are the services that execute activities and workflows. They listen to task queues and process the tasks that are sent to them.
+    *Task Queues: Tasks are sent to task queues, where workers pick them up for execution. Temporal allows workflows and activities to be processed concurrently across multiple workers.
+
+When to Use Temporal?
+Temporal is ideal for use cases such as:
+    *Long-running workflows: Workflows that span minutes, hours, days, or even longer, such as payment processing or order fulfillment.
+    *Retry mechanisms: Handling retries in workflows where certain activities may fail and need to be retried with exponential backoff.
+    *Complex workflows: Orchestrating and coordinating complex workflows with dependencies across different services.

@@ -1,0 +1,57 @@
+Task 4: Install Temporal Locally Using Docker
+
+Install Temporal Locally Using Docker
+1. Overview
+To get started with Temporal locally, one of the easiest ways is to use Docker. Temporal provides a preconfigured Docker Compose setup that makes it simple to run Temporal services in a local environment. This setup includes Temporal Server, Frontend, Worker, and other necessary services like Postgres for data storage.
+
+2. Prerequisites
+Before installing Temporal with Docker, ensure that you have the following installed:
+    Docker
+    Docker Compose
+    Git
+
+3. Install Temporal with Docker
+Follow these steps to install Temporal locally using Docker
+git clone https://github.com/temporalio/docker-compose.git
+cd docker-compose
+docker-compose up
+
+This command will:
+    *Start the Temporal server and all its dependencies like PostgreSQL, Cassandra , and others.
+    *If this is the first time you’re running the command, Docker Compose will download the necessary images and set up the containers.
+
+The Temporal Web UI will be accessible at:
+http://localhost:8088
+
+4. Stopping the Services
+docker-compose down
+This will gracefully shut down all the containers.
+
+5. Temporal CLI 
+After installing Temporal with Docker, you can use the Temporal Command Line Interface (tctl) to interact with the Temporal server.
+
+6. Accessing the Temporal CLI:
+Once the Docker containers are running, you can execute temporal commands from inside the container. To enter the Temporal container, run:
+docker exec -it temporal-server bash
+This will give you a shell where you can execute Temporal CLI commands. For example, to list the namespaces, you can run:
+temporal namespace list
+
+6. Example Workflow
+Once you have Temporal running locally, you can test it by running a simple workflow. Below is an example to register a basic workflow and activity.
+Workflow Code Example:
+
+from temporalio import workflow, activity
+# Defining an activity
+@activity.defn
+async def say_hello(name: str) -> str:
+    return f"Hello, {name}"
+# Defining a workflow
+@workflow.defn
+class HelloWorldWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        result = await workflow.execute_activity(say_hello, name)
+        return result
+Once you have your workflow and activity defined, you can start a Temporal client and run the workflow.
+
+Temporal uses a database for persistence. In the Docker Compose setup, PostgreSQL is the default database. You can change this to MySQL or Cassandra by modifying the docker-compose.yml file.

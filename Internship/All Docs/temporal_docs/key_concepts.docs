@@ -1,0 +1,63 @@
+Task 2: Key Concepts in Temporal
+
+1. Workflows
+In Temporal, a workflow is a stateful function that defines a series of tasks or activities that need to be performed. Workflows are designed to be durable and can run for extended periods of time, even across system restarts or failures. Temporal automatically manages workflow execution, state transitions, retries, and more.
+
+    Stateful Execution: Temporal workflows maintain state across tasks, meaning they can pause, resume, and be retried.
+    Deterministic: Workflows are deterministic, meaning given the same inputs, they will produce the same results every time, which is essential for reliability and replayability.
+
+Example Workflow:
+
+from temporalio import workflow
+@workflow.defn
+class HelloWorldWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        return f"Hello, {name}!"
+
+In this simple workflow, run is the main entry point, and it will return a greeting with the name parameter.
+
+2. Activities
+An activity is an individual unit of work that is executed as part of a workflow. Activities can be anything from sending emails to processing payments. They can run independently and are typically shorter-lived compared to workflows.
+    *Task Execution: Activities are the tasks that workers process. Workers pull tasks from task queues and execute activities.
+    *Asynchronous: Activities in Temporal are usually asynchronous, meaning they don't block the workflow. They return a result once completed.
+
+Example Activity:
+
+from temporalio import activity
+@activity.defn
+async def send_email(user_email: str) -> str:
+    return f"Sent email to {user_email}"
+
+In this example, the activity is responsible for sending an email to the provided address.
+
+3. Workers
+Workers are the processes that execute workflows and activities. They listen to task queues and process the tasks assigned to them. Workers can be scaled horizontally to handle a large number of tasks, allowing the system to scale with demand.
+    * Task Queues: Workers pull tasks from task queues to execute workflows and activities. Different queues can be used for different types of tasks.
+    * Worker Configuration: Workers can be configured to handle specific types of workflows or activities based on the task queues they subscribe to.
+
+Example Worker Initialization Setup:
+
+import asyncio
+from temporalio.client import Client
+from temporalio.worker import Worker
+from workfow import GreetSomeone
+async def main():
+    client = await Client.connect("localhost:7233", namespace="default")
+    # Run the worker
+    worker = Worker(client, task_queue="greeting-tasks", workflows=[GreetSomeone])
+    await worker.run()
+if __name__ == "__main__":
+    asyncio.run(main())
+
+This code snippet shows how a worker connects to a Temporal server, subscribes to a task queue, and executes activities.
+
+4. Tasks
+A task is a unit of work that can be an activity or a workflow. Temporal schedules tasks based on workflows' needs and assigns them to workers.
+    * Task Execution: Tasks are sent to task queues, where workers can pick them up for execution.
+    * Retry Mechanisms: Tasks can be retried if they fail, with customizable retry policies, including exponential backoff.
+
+5. Task Queues
+Task Queues are used to manage and distribute work across workers. When a workflow or activity is executed, its associated tasks are placed in task queues. Workers then pull tasks from these queues to execute them.
+    * Multiple Queues: You can have different queues for different kinds of tasks, which helps manage the distribution of work.
+    * Task Load Distribution: Task queues enable Temporal to distribute work evenly across multiple workers for scalability and load balancing.

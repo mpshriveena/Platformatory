@@ -1,0 +1,68 @@
+Task 20: Choosing an SDK: Go, Java, Python, or TypeScript
+
+1. Introduction to Temporal SDKs
+Temporal provides software development kits (SDKs) for multiple programming languages to help developers interact with the Temporal service. The SDKs allow developers to create workflows, activities, and workers in their preferred language. Each SDK provides functionality to register workflows and activities, execute workflows, manage retries, and more.
+
+Temporal supports the following SDKs:
+
+    1) Go SDK: The primary SDK for Temporal, widely used in production.
+    2) Java SDK: A mature SDK that integrates well with Java-based systems.
+    3) Python SDK: A more recent addition, allowing Python developers to use Temporal.
+    4) TypeScript SDK: Popular among JavaScript and TypeScript developers for building workflows and activities in a web environment.
+
+
+1) Go SDK
+The Go SDK is the most mature and feature-rich SDK provided by Temporal. It is the primary SDK for Temporal and is widely used in production environments.
+Key Features:
+    Strong support for workflows, activities, and worker execution.
+    Excellent integration with other Go libraries and cloud services.
+    High-performance due to Go's concurrency model (goroutines and channels).
+    Well-suited for backend services, microservices, and large-scale distributed systems.
+When to Use:
+    When building a backend or microservices architecture in Go.
+    For applications where performance and scalability are critical.
+    If you are already using Go in your infrastructure.
+
+2) Java SDK
+The Java SDK is another mature SDK provided by Temporal. It has extensive support for Java-based workflows and activities, with integration into the Java ecosystem.
+Key Features:
+    Seamless integration with Java and Spring-based frameworks.
+    Supports Java concurrency models (threads, executors).
+    Offers compatibility with Java-based tools, including databases, frameworks, and libraries.
+    Comprehensive SDK documentation and support from the Temporal community.
+When to Use:
+    When your application is built on Java or you have existing Java infrastructure.
+    If you require enterprise-grade features and integration with the Java ecosystem (e.g., Spring Boot, Hibernate).
+    For teams already familiar with Java and its libraries.
+
+3) Python SDK
+The Python SDK is the newest SDK offered by Temporal and is designed for Python developers. While still under active development, it is capable of handling workflows and activities, making it suitable for many use cases.
+Key Features:
+    Ideal for Python developers who want to integrate Temporal with Python-based systems.
+    Built with support for the Python concurrency model (asyncio).
+    Easy to integrate with popular Python libraries and tools like Flask, Django, and Celery.
+    Good for data science, machine learning, and research-based workflows.
+When to Use:
+    If your application is built in Python or you're working with Python libraries.
+    For teams that need to use Temporal's workflow capabilities but prefer Python's simplicity and flexibility.
+    For data-driven applications, research workflows, or machine learning pipelines.
+
+4) TypeScript SDK
+The TypeScript SDK is designed for JavaScript/TypeScript developers. It is ideal for applications that are built using Node.js, especially for frontend-oriented development.
+Key Features:
+    Excellent integration with the Node.js ecosystem.
+    Ideal for building event-driven workflows or interacting with web services.
+    Support for TypeScript's static typing for better developer experience and maintainability.
+    Popular for applications built using web technologies or microservices that use JavaScript/TypeScript.
+When to Use:
+    If you’re building serverless or microservices applications using Node.js or TypeScript.
+    When working with web-based event-driven systems.
+    If you prefer TypeScript's strong typing and modern JavaScript features.
+
+
+The choosen SDK is python.
+Reason:
+Easier language
+For Python-based teams building machine learning pipelines, data-driven workflows, 
+or rapid prototyping.
+If you are working in a research or data-heavy environment where Python's ecosystem is beneficial.

@@ -1,0 +1,16 @@
+Task 22: Define a simple workflow: Code example and explanation
+
+There are three steps for turning a Python function into a Workflow Definition:
+    1) Import the workflow module from the SDK
+    2) Add the @workflow.defn decorator to the class that will define the Workflow Definition
+    3) Add the @workflow.run decorator to the function that defines the Workflow Function
+
+python --> class --> workflow definition
+workflow.py
+
+from temporalio import workflow #imports workflow module from temporal Python SDK
+@workflow.defn #add this decorator to the class that will define the workflow definition
+class GreetSomeone():
+    @workflow.run #add this decorator to the function that will define the workflow definition
+    async def run(self, name:str) -> str: # entry point for running the workflow
+        return f"Hello {name}!" #returns the output

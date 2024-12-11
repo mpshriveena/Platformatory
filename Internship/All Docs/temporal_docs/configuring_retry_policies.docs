@@ -1,0 +1,98 @@
+Task 30: Configuring Retry Policies: Max Attempts, Backoff Intervals
+
+Retry Policies in Temporal
+In a distributed system, errors are inevitable. Sometimes activities or workflows may fail due to network issues, timeouts, or other transient failures. Temporal offers a flexible retry mechanism to handle such failures. By configuring retry policies, you can ensure that activities and workflows are retried automatically without manual intervention.
+A retry policy defines the behavior for retrying activities or workflows after a failure. Temporal automatically retries failed activities based on the configured retry policy, allowing the system to handle transient failures efficiently.
+
+A retry policy consists of the following components:
+
+    Maximum Attempts: The maximum number of retry attempts for a given activity or workflow.
+    Initial Interval: The time delay before the first retry attempt.
+    Backoff Interval: The time delay between subsequent retries, which may increase exponentially or follow a custom schedule.
+    Maximum Interval: The maximum allowed delay between retries. It prevents retries from being delayed indefinitely.
+
+The retry mechanism is especially useful in cases where the failure is transient (e.g., network issues, timeouts, external service unavailability), as it ensures that the system will continue to attempt the operation until it succeeds or the maximum retry attempts are reached.
+3. Configuring Retry Policies for Activities
+
+In Temporal, you can configure retry policies for individual activities. The retry policy for an activity is specified using the activity_options parameter when defining the activity. Temporal automatically applies the configured retry policy whenever an activity fails.
+3.1. Example: Defining Retry Policies for Activities
+
+from temporalio import activity
+
+# Define an activity with a retry policy and simulate it that may fail intermittently
+from temporalio import activity
+@activity.defn
+async def divide(a: int, b: int) -> float:
+    if b == 0:
+        raise ValueError("Division by zero is not allowed.")
+    return a / b
+
+# Define activity options with a retry policy
+activity_options = activity.ActivityOptions(
+    retries=3,  # Maximum attempts
+    initial_interval=5,  # Initial retry interval in seconds
+    backoff_coefficient=2,  # Exponential backoff
+    maximum_interval=60  # Max delay between retries in seconds
+)
+
+# Using the activity options in the worker
+worker = Worker(
+    client=client,
+    task_queue="example-task-queue",
+    activities=[unreliable_activity],
+    activity_options=activity_options
+)
+#or if using activities
+answer = await workflow.execute_activity(
+            divide,
+            args=(a,b),
+            start_to_close_timeout=timedelta(seconds=5),
+            retry_policy=retry_policy
+
+3.2. Retry Policy Components:
+
+    Retries: Specifies the maximum number of retry attempts.
+    Initial Interval: Defines the wait time between the first failure and the first retry.
+    Backoff Coefficient: Controls how the time between retries increases after each attempt. A backoff coefficient of 2 means the delay will double with each retry.
+    Maximum Interval: Defines the upper limit for the delay between retries.
+
+4. Configuring Retry Policies for Workflows
+
+Similarly to activities, you can also configure retry policies for workflows. This can be useful in cases where a workflow might encounter transient errors or failures during its execution.
+4.1. Example: Defining Retry Policies for Workflows
+
+from datetime import timedelta
+from temporalio import workflow
+from activity import divide  # Import activities from activity.py
+from temporalio.common import RetryPolicy
+from temporalio.exceptions import ActivityError
+
+@workflow.defn
+class DivideWorkflow:
+    @workflow.run
+    async def run(self, a: int, b: int) -> str:
+        retry_policy = RetryPolicy(
+            maximum_attempts=1
+        )     
+        try:
+            answer = await workflow.execute_activity(
+            divide,
+            args=(a,b),
+            start_to_close_timeout=timedelta(seconds=5),
+            retry_policy=retry_policy
+        )
+            return str(answer)
+        except ActivityError as e:
+            return f"{str(e.cause)}"
+        except Exception as e:
+            return f"Workflow failed with error: {str(e)}"
+
+Backoff Intervals and Exponential Backoff
+Backoff intervals are crucial when configuring retry policies. Temporal supports exponential backoff, which means the delay between retry attempts increases exponentially.
+Example: Exponential Backoff
+If the initial interval is set to 5 seconds and the backoff coefficient is set to 2, the retry intervals would be as follows:
+    >First retry: 5 seconds
+    >Second retry: 10 seconds (5 * 2)
+    >Third retry: 20 seconds (10 * 2)
+
+Thus onfiguring retry policies in Temporal is a powerful way to handle transient failures in workflows and activities. By specifying retry settings like the number of retries, backoff intervals, and maximum delays, you can ensure that your system handles failures gracefully and efficiently. Whether you are working with activities or workflows, Temporal’s retry mechanism can be customized to fit your use case and ensure reliable execution of long-running operations.

@@ -1,0 +1,33 @@
+Task 33: Design Patterns for Long-Running Workflows with Potential Failures
+
+Long-running workflows often involve multiple retries, timeouts, and external dependencies, which can potentially fail. Temporal helps manage such workflows by offering patterns that make them more reliable, scalable, and fault-tolerant.
+Common Design Patterns
+
+    Retry Patterns:
+        Temporal allows configuring retries for failed activities or workflows.
+        You can define retry policies to handle transient failures (e.g., network failures, temporary outages of external systems).
+
+    Example Retry Policy:
+
+    retry_policy = RetryPolicy(
+        initial_interval=timedelta(seconds=5),
+        maximum_attempts=3
+    )
+
+    Saga Pattern:
+        This is used for workflows where each step could fail and requires compensation.
+        Temporal supports saga patterns with compensation logic to handle errors and rollback the state of a workflow.
+
+    Timeout Patterns:
+        Temporal allows setting different types of timeouts to ensure long-running workflows don’t hang indefinitely.
+        You can use Activity Timeout, Workflow Timeout, and Schedule-to-Close Timeouts to manage these scenarios.
+
+    Polling and Event-Driven Design:
+        Temporal supports signals, which allows workflows to wait for external events, such as a third-party service response or manual approval.
+
+1.2 Handling Failures in Long-Running Workflows
+
+    Automatic Retries: Temporal will automatically retry failed activities based on the defined retry policy.
+    Retries until Max Attempts: If a retry exceeds the maximum number of attempts, Temporal can either terminate the workflow or mark it as failed.
+    Compensation Logic: Using the saga pattern, Temporal supports compensation steps that help rollback changes in case a part of the workflow fails.
+

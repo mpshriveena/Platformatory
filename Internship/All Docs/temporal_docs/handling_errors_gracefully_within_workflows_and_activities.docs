@@ -1,0 +1,10 @@
+Task : 31 Handling Failures Gracefully Within Workflows and Activities
+
+How to Gracefully Handle Errors in Temporal
+    1) Use Retry Policies: Define retry policies for activities or workflows to handle transient errors automatically.
+    2) Catch and Handle Exceptions: In your workflow code, you can catch exceptions and either:
+        -->Log the error.
+        -->Retry the activity or workflow.
+        -->Fail gracefully or provide fallback mechanisms.
+    3) Set Timeout Values: Set appropriate timeouts for activities and workflows to avoid hanging operations.
+    4) Define Custom Error Handling: For specific errors, you may want to handle them in a custom way, such as sending a notification, storing error details in a database, or adjusting your retry policy dynamically.

@@ -1,0 +1,51 @@
+Task 5: Understand Temporal Server and CLI
+
+Temporal Server
+What is the Temporal Server?
+The Temporal Server consists of four independently scalable services:
+    Frontend gateway: for rate limiting, routing, authorizing.
+    History subsystem: maintains data (mutable state, queues, and timers).
+    Matching subsystem: hosts Task Queues for dispatching.
+    Worker Service: for internal background Workflows.
+
+What is a Frontend Service?
+The Frontend Service is a stateless gateway service that exposes a strongly typed Proto API. The Frontend Service is responsible for rate limiting, authorizing, validating, and routing all inbound calls.
+
+What is a History Service?
+The History Service is responsible for persisting Workflow Execution state to the Workflow History. When the Workflow Execution is able to progress, the History Service adds a Task with the Workflow's updated history to the Task Queue. From there, a Worker can poll for work, receive this updated history, and resume execution.
+
+What is a Matching Service?
+The Matching Service is responsible for hosting user-facing Task Queues for Task dispatching.
+
+What is a Worker Service?
+The Worker Service runs background processing for the replication queue, system Workflows.
+
+Temporal CLI Tool (temporal)
+The temporal CLI tool is used for interacting with the Temporal service. It allows you to manage workflows, activities, task queues, and namespaces, as well as monitor Temporal's status.
+
+Installation Procedure
+
+1) Install Temporal CLI. The following link is for linux amd64
+https://temporal.download/cli/archive/latest?platform=linux&arch=amd64
+2) Extract the tar file
+3) Move or copy the temporal inside the extracted tar to binary fromPrivilegedListener
+sudo cp /home/mpshriveena/Downloads/temporal_cli_1.1.2_linux_amd64/temporal /usr/local/bin/
+4) Verify the version of temporal
+temporal --version
+source ./env/bin/activate
+5) Start the temporal server using the following command
+temporal server start-dev
+6) It should return the following output
+CLI 1.1.2 (Server 1.25.2, UI 2.32.0)
+Server:  localhost:7233
+UI:      http://localhost:8233
+Metrics: http://localhost:46457/metrics
+7) The Temporal Service will be available on localhost:7233.
+8) The Temporal Web UI will be available at http://localhost:8233.
+9) If we want to change the port
+temporal server start-dev --ui-port 8080
+10) The temporal server start-dev command uses an in-memory database, so stopping the server will erase all your Workflows and all your Task Queues. If you want to retain those between runs, start the server and specify a database filename using the --db-filename option, like this:
+temporal server start-dev --db-filename temporal_data.db
+
+Example Temporal CLI Command
+temporal workflow list

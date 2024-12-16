@@ -1,0 +1,14 @@
+Task 48: Replay Workflows – Debugging with History
+
+Why Replay Workflows?
+Replaying workflows is essential for debugging and verifying the exact sequence of events that occurred in a workflow's execution. Temporal stores the full history of workflow executions, including all activities, decisions, and events. By replaying a workflow, you can observe how it would behave again based on past events, which helps identify issues or unexpected behavior.
+Replaying workflows can help with:
+    Bug diagnosis: Understanding why a workflow failed or didn’t behave as expected.
+    Test validation: Verifying that changes to the workflow logic or Temporal configurations didn’t introduce new errors.
+    Reproducing issues: Testing workflows under specific conditions to reproduce failures for troubleshooting.
+    Efficient Debugging: You don’t need to manually recreate failed scenarios. Simply replay the workflow to understand the exact sequence of events.
+    Deterministic Execution: Temporal ensures that replays are deterministic, meaning they will follow the exact same path as the original workflow.
+    Faster Issue Resolution: Replay allows you to quickly find the root cause of an issue, saving both time and resources during the debugging process.
+
+Replaying workflows cannot be implemented with Temporal CLI. It can be only implemented using client code
+

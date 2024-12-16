@@ -1,0 +1,6 @@
+Task 47: Terminate or Signal Workflows
+1) Terminate Workflows
+temporal workflow terminate --workflow-id products-workflow
+
+2) Signal Workflows
+temporal workflow signal --workflow-id products-workflow --name update_products --input 532

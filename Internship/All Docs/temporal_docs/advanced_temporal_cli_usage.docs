@@ -1,0 +1,13 @@
+Task 46: Advanced Temporal CLI Usage
+
+Some of the advanced temporal CLI usages are
+1) Terminate Workflows
+temporal workflow terminate --workflow-id products-workflow
+2) Cancel Worflows
+temporal workflow cancel --workflow-id products-workflow
+3) Signal Workflows
+temporal workflow signal --workflow-id products-workflow --name update_products --input 532
+4) Query Workflows
+temporal workflow query --workflow-id=products-workflow --type=get_product_count
+5) Modify namespace configurations
+temporal operator namespace update --namespace="my-namespace" --retention="5d"

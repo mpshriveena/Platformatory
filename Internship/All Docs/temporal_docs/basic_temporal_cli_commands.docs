@@ -1,0 +1,243 @@
+Task 43: Basic Temporal CLI Commands
+
+Check the version of installed temporal
+temporal --version
+
+Basic Temporal CLI Commands
+
+The following are some of the most commonly used Temporal CLI command sets.
+
+Command Set:
+    *temporal activity
+    *temporal batch
+    *temporal env
+    *temporal operator
+    *temporal schedule
+    *temporal server
+    *temporal task-queue
+    *temporal workflow
+
+1) Workflow Commands
+
+Cancel
+temporal workflow cancel --workflow-id=meaningful-business-id
+
+Count
+temporal workflow count #count total workflows
+temporal workflow count --namespace default #count the number of workflows within a namespace
+
+Delete
+temporal workflow delete --workflow-id sample-workflow
+
+Describe
+Describe a workflow
+temporal workflow describe --workflow-id greeting-workflow
+-->must specify workflow id
+
+Execute
+temporal workflow execute --workflow-id=meaningful-business-id --type-MyWorkflow --task-queue-MyTaskQueue --input='{"JSON": "Input"}'
+
+List
+temporal workflow list
+
+Query
+temporal workflow query --workflow-id=products-workflow --type=get_product_count
+
+Reset
+A reset resumes the Workflow from a certain point without losing your parameters or Event History.
+temporal workflow reset --workflow-id=products-workflow --type=LastWorkflowTask --reason=trial
+typeis one of these values FirstWorkflowTask, LastWorkflowTask, LastContinuedAsNew, BuildId
+Required flag --reason
+
+reset-batch
+The temporal workflow reset-batch command resets multiple Workflow Executions by resetType
+temporal workflow reset-batch --input-file=MyInput --input-separator="\t"
+
+show
+The temporal workflow show command provides the Event History for a Workflow Execution.
+temporal workflow show --workflow-id=products-workflow
+
+signal
+temporal workflow signal --workflow-id products-workflow --name update_products --input 532
+
+stack
+The temporal workflow stack command queries a Workflow Execution with --stack-trace as the Query type.
+temporal workflow stack --workflow-id=products-workflow
+[worker should be running to execute this command]
+
+start
+temporal workflow start --task-queue products-tasks --type ProductsLeft --workflow-id products-workflow --input 456
+
+terminate
+temporal workflow terminate --workflow-id products-workflow
+
+trace
+The temporal workflow trace command tracks the progress of a Workflow Execution and any Child Workflows it generates.
+temporal workflow trace --workflow-id products-workflow
+
+update
+Available Commands:
+  describe    Obtain status info about a specific Update (Experimental)
+  execute     Send an Update and wait for it to complete (Experimental)
+  result      Wait for a specific Update to complete (Experimental)
+  start       Send an Update and wait for it to be accepted or rejected (Experimental)
+temporal workflow update start --workflow-id products-workflow --input 60
+temporal workflow update start --workflow-id products-workflow --name first-update --wait-for-stage accepted
+
+2) Activty Commands
+
+complete
+The temporal activity complete command completes an Activity Execution.
+temporal activity complete --workflow-id greeting-workflow --activity-id 1 --result "\"ActivityComplete\""
+
+fail
+The temporal activity fail command fails an Activity Execution. 
+temporal activity fail --workflow-id greeting-workflow --activity-id 1
+
+3) Task Queue Commands
+
+describe
+temporal task-queue describe --task-queue=greeting-activities --task-queue-type="activity"
+temporal task-queue describe --task-queue=greeting-activities
+
+list-partitions
+temporal task-queue list-partition --task-queue=qreeting-activities
+
+get-build-ids
+temporal task-queue get-build-ids --task-queue=qreeting-activities
+
+get-build-id-reachability
+temporal task-queue get-build-id-reachability --task-queue=qreeting-activities
+
+4) Server Commands
+
+temporal server start-dev
+temporal server start-dev --headless
+temporal server start-dev --ui-port 8080
+temporal server start-dev --db-filename temporal_data.db
+
+5) Batch Commands
+To run batch commands, first create batch jobs
+There are three types of Batch Jobs:
+    Cancel: cancels the Workflow Executions specified by the List Filter.
+    Signal: sends a Signal to the Workflow Executions specified by the List Filter.
+    Terminate: terminates the Workflow Executions specified by the List Filter.
+
+To Cancel Workflows:
+temporal workflow cancel \
+  --query 'ExecutionStatus = "Running" AND WorkflowType="ProductsLeft"' \
+  --reason "Testing"
+
+To Signal Workflows:
+temporal workflow signal \
+  --name update_products \
+  --input 54 \
+  --query 'ExecutionStatus = "Running" AND WorkflowType="ProductsLeft"' \
+  --reason "Testing"
+
+temporal workflow signal \
+  --workflow-id products-workflow \
+  --name update_products \
+  --input 48
+
+To Terminate Workflows:
+temporal workflow terminate \
+  --query 'ExecutionStatus = "Running" AND WorkflowType="ProductsLeft"' \
+  --reason "Testing"
+
+A successfully started Batch job will return a Job ID. Use this Job ID to execute other actions on the Batch job. 
+
+list
+temporal batch list --namespace=default
+
+describe
+temporal batch describe --job-id=99871585-0efe-40e0-bd73-820332ce0cac
+
+terminate
+temporal batch terminate --job-id=99871585-0efe-40e0-bd73-820332ce0cac --reason=JobReason
+
+6) Schedule Commands
+
+Create Schedule
+temporal schedule create \
+    --schedule-id 'first-schedule' \
+    --interval '5m' \
+    --calendar '{"dayOfWeek":"Mon","hour":"7","minute":"44"}' \
+    --overlap-policy 'BufferAll' \
+    --workflow-id 'products-workflow' \
+    --task-queue 'products-tasks' \
+    --type 'ProductsLeft' \
+    --input 16
+
+Delete Schedule
+temporal schedule delete --schedule-id 'first-schedule'
+
+Describe Schedule
+temporal schedule describe --schedule-id 'first-schedule'
+
+List schedules
+temporal schedule list
+
+toggle
+The temporal schedule toggle command can pause and unpause a Schedule.
+temporal schedule toggle --schedule-id 'first-schedule' --pause --reason "paused because of trial 1" 
+temporal schedule toggle --schedule-id 'your-schedule-id' --unpause --reason "unpaused because of trial 1"
+
+trigger
+The temporal schedule trigger command triggers an immediate action with a given Schedule.
+temporal schedule trigger --schedule-id 'first-schedule'
+
+Update
+Updating a Schedule takes the given options and replaces the entire configuration of the Schedule with what's provided
+temporal schedule update 			    \
+    --schedule-id 'first-schedule' 	\
+    --workflow-id 'products-workflow' 	\
+    --task-queue 'products-tasks' 		\
+    --workflow-type 'ProductsLeft'  \
+    --input 20
+
+Updating a Schedule takes the given options and replaces the entire configuration of the Schedule with what's provided
+
+7) Operator Commands
+
+Describe
+temporal operator cluster describe
+
+health
+The temporal operator cluster health command checks the health of the Frontend Service.
+temporal operator cluster health
+
+list
+temporal operator cluster list
+
+remove
+temporal operator cluster remove --name=SomeCluster
+
+system
+The temporal operator cluster system command provides information about the system the Cluster is running on.
+temporal operator cluster system
+
+upsert
+
+The temporal operator cluster upsert command allows the user to add or update a remote Cluster. 
+
+create namespace
+temporal operator namespace create command creates a new Namespace. The Namespace can be created on the active Cluster, or any named Cluster within the system. temporal operator namespace --cluster=MyCluster
+temporal operator namespace create trial
+To create namespace with certain retention period,
+temporal operator namespace create --namespace="my-namespace" --global+false --history-archival-state="enabled" --retention="4d"
+
+delete namespace
+temporal operator namespace delete trial1
+
+describe namespace
+temporal operator namespace describe --namespace=my-namespace
+
+list namespace
+temporal operator namespace list
+
+update namespace
+temporal operator namespace update --namespace="my-namespace" --retention="5d"
+
+8) env commands
+temporal env get

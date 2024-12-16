@@ -1,0 +1,40 @@
+Task 45: View Workflow History: Understand State Transitions
+
+View Workflow History: Understand State Transitions
+Viewing the workflow history is a crucial part of debugging and understanding how a workflow has executed over time. Temporal records the history of every workflow execution, including state transitions, activities, and decisions made during the workflow.
+Viewing the workflow history can be done in two ways.
+
+1) Through UI
+In Temporal UI, when a particular workflow is viewed, Event history is shown at the bottom.
+
+2) Through CLI
+Using workflow describe command, we can get a brief overview of execution time, IDs and result.
+temporal workflow describe --workflow-id greeting-workflow
+
+Complete history can be obtained from show command
+temporal workflow show --workflow-id=products-workflow
+
+To get the history in json format
+temporal workflow show --workflow-id products-workflow --output json
+
+To put the json output into a file
+temporal workflow show --workflow-id products-workflow --output json >>trial.json
+
+Optional run id
+temporal workflow show --workflow-id=products-workflow --run-id cae7adf4-b97e-4e47-9514-700436be3bec
+
+Understanding Workflow History
+Each workflow execution in Temporal is tracked as a sequence of events, which is known as the workflow history. This history includes:
+    Workflow started.
+    Activities executed (success or failure).
+    Timer events.
+    Workflow completed or failed.
+    Decisions made within the workflow.
+
+Analyzing State Transitions
+State transitions in a workflow provide insight into its lifecycle. Temporal workflows go through the following states:
+    Created: The workflow has been initiated but not yet executed.
+    Running: The workflow is executing activities or waiting for external signals.
+    Completed: The workflow has finished its execution.
+    Failed: The workflow encountered an error or failure during execution.
+

@@ -1,0 +1,16 @@
+List Workflows, activities and Task Queues
+
+1) To list workflows
+temporal workflow list
+
+2) To list activities
+Activities cannot be listed. Available commands in activities are
+-->temporal activity complete
+-->temporal activity fail
+
+To list task queues
+Task Queues cannot be listed. Available options are
+temporal task-queue describe --task-queue=greeting-activities
+temporal task-queue list-partition --task-queue=qreeting-activities
+temporal task-queue get-build-ids --task-queue=qreeting-activities
+temporal task-queue get-build-id-reachability --task-queue=qreeting-activities

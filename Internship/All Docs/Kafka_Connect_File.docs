@@ -58,7 +58,7 @@ curl -X POST http://localhost:8083/connectors \
 }'
 
 Check the contents of the output file.
-cat /home/cloud_user/output.txt
+cat /home/mpshriveena/Desktop/Platformatory/trials/output.txt
 
 Delete both connectors to clean up.
 curl -X DELETE http://localhost:8083/connectors/file_source_connector

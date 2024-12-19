@@ -2,7 +2,7 @@
     #Add the GPG key:
     wget -qO - https://packages.confluent.io/deb/7.3/archive.key | sudo apt-key add -
     #Add the package repository:
-    sudo add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/5.2 stable main"
+    sudo add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/7.3 stable main"
     #Install Confluent Community and Java:
     sudo apt-get update && sudo apt-get install -y openjdk-11-jre-headless confluent-community-7.3
 

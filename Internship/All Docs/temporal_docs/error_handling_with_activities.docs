@@ -1,0 +1,119 @@
+Task 27: Error Handling within Activities
+
+Error handling is a crucial aspect of any workflow, and Temporal provides robust mechanisms
+to handle errors both within activities and workflows. Activities, being external 
+and often dependent on external resources, can fail due to various reasons such as 
+timeouts, resource unavailability, or logic errors. Temporal allows you to define retries,
+handle exceptions, and ensure that workflows continue operating smoothly even in the 
+face of failure.
+
+Types of Errors in Activities
+
+In Temporal, errors can arise due to various reasons. There are two main categories of errors:
+
+    -->Application Failures: Errors that occur due to business logic, invalid input, or other 
+	expected conditions within the activity.
+    -->System Failures: Errors that occur due to failures in the system, such as network errors, 
+	timeouts, or service unavailability.
+
+Various methods in error handling
+1) Raising Error
+Lets make an activity to raise error
+activity.py
+
+from temporalio import activity
+@activity.defn
+async def divide(a: int, b: int) -> float:
+    if b == 0:
+        raise ValueError("Division by zero is not allowed.")
+    return a / b
+
+register_activity.py
+
+import asyncio
+from temporalio.client import Client
+from temporalio.worker import Worker
+from activity import divide
+from activity_workflow import DivideWorkflow
+async def main():
+    client = await Client.connect("localhost:7233", namespace="default")
+    worker = Worker(
+        client,
+        task_queue="greeting-activities",
+        workflows=[DivideWorkflow],
+        activities=[divide],
+    )
+    await worker.run()
+if __name__ == "__main__":
+    asyncio.run(main())
+
+activity_workflow.py
+
+from datetime import timedelta
+from temporalio import workflow
+from activity import divide  # Import activities from activity.py
+from temporalio.common import RetryPolicy
+from temporalio.exceptions import ActivityError
+
+@workflow.defn
+class DivideWorkflow:
+    @workflow.run
+    async def run(self, a: int, b: int) -> str:
+        retry_policy = RetryPolicy(
+            maximum_attempts=1
+        )
+        try:
+            answer = await workflow.execute_activity(
+            divide,
+            args=(a,b),
+            start_to_close_timeout=timedelta(seconds=5),
+            retry_policy=retry_policy
+        )
+            return str(answer)
+        except ActivityError as e:
+            return f"{str(e.cause)}"
+        except Exception as e:
+            return f"Workflow failed with error: {str(e)}"
+
+Need for retry here:
+ValueError is raised in the activity but not caught in the workflow because it retries 
+indefinitely. Thats why retries are specified.
+
+execute_workflow.py
+
+import asyncio
+import sys
+from temporalio.client import Client
+from activity_workflow import DivideWorkflow  # Import your workflow
+async def main():
+    client = await Client.connect("localhost:7233")
+    # Start the workflow
+    handle = await client.start_workflow(
+        DivideWorkflow.run,  # Workflow function
+        args=(int(sys.argv[1]), int(sys.argv[2])),
+        id="greeting-workflow",  # Workflow ID
+        task_queue="greeting-activities"  # Task queue
+    )
+    print(f"Started workflow. Workflow ID: {handle.id}, RunID: {handle.result_run_id}")
+    # Wait for the result of the workflow
+    result = await handle.result()
+    print(f"Result: {result}")
+if __name__ == "__main__":
+    asyncio.run(main())
+
+To check whether raising error is working file, execute the following commands. The second 
+command should throw error
+python3 ../temporal_codes/activities/raising_error/execute_workflow.py 2 4
+python3 ../temporal_codes/activities/raising_error/execute_workflow.py 2 0
+
+2) Retry Policies
+retry_policy = RetryPolicy(
+            initial_interval=timedelta(seconds=15),#time to wait between the first & second attempt
+            backoff_coefficient=2.0, #interval increases by a factor of 2 after each retry
+            maximum_interval=timedelta(seconds=160), #but should not exeed this value
+            maximum_attempts=100, # retry stops after 100 attempts
+        )
+3) Handling Non-Retriable Errors
+Some errors might not be suitable for retrying, such as logic errors, invalid inputs, or 
+permanent service failures. In such cases, it is important to catch these errors and handle 
+them gracefully within the workflow.

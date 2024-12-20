@@ -1,0 +1,16 @@
+Task 12: Defining an Activity: Structure and Purpose
+
+Defining an activity contains two steps:
+--> Import activity from SDK
+--> Use @activity.defn to define an activity
+
+Structure:
+from temporalio import activity
+@activity.defn
+async def greet_in_english(name: str) -> str:
+    return f"Hello {name}!"
+
+Purpose:
+--> Random functions
+--> Database operations
+--> Connecting to external environment

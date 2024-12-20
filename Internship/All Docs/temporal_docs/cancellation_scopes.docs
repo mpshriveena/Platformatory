@@ -1,0 +1,16 @@
+Task 35: Cancellation Scopes: Managing Specific Parts of a Workflow
+
+What is cancellation scope?
+A cancellation scope allows you to define a specific region within a workflow where cancellations can occur independently. This means that when a cancellation is triggered within a scope, only the activities or workflows within that scope will be canceled, while the rest of the workflow can continue executing normally.
+
+Scope is not available in python however we can implement a similar functionality.
+
+activity1_handle = workflow.start_activity(
+            your_name,
+            args=(name,age),
+            start_to_close_timeout=timedelta(seconds=5),
+            )
+            if not re.match("^[A-Za-z]+$", name):
+                print(f"There is a special character in your name. It is invalid.")
+                activity1_handle.cancel()
+                print(f"So the activity 1 is cancelled")

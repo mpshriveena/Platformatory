@@ -1,0 +1,36 @@
+Task 19: Graceful Worker Shutdown: How to Stop Workers Without Interrupting Workflows
+
+Graceful shutdown is an important aspect of maintaining the reliability of Temporal workflows. Workers are responsible for executing activities, and if they are stopped abruptly, there is a risk of disrupting active workflows. A graceful shutdown ensures that workers finish the tasks they are currently processing and stop gracefully without affecting the overall system.
+
+What is Graceful Shutdown?
+
+Graceful shutdown refers to the process where workers stop polling for new tasks from the task queue and complete the tasks they are already processing. Once all active tasks are finished, the worker stops without interrupting in-progress workflows. This ensures that workflows don’t experience unexpected behavior due to workers being abruptly terminated.
+In Temporal, workflows are long-running and may take hours, days, or even longer to complete. A graceful shutdown strategy ensures that even if a worker is terminated (for maintenance, scaling, or other reasons), the workflows continue to run uninterrupted and that no data or state is lost.
+
+Steps to Gracefully Shut Down Temporal Workers
+
+import asyncio
+import signal
+from temporalio.client import Client
+from temporalio.worker import Worker
+from workflow import GreetSomeone
+async def main():
+    client = await Client.connect("localhost:7233", namespace="default")
+    worker = Worker(client, task_queue="greeting-tasks", workflows=[GreetSomeone])
+    shutdown_event = asyncio.Event()
+    def signal_handler():
+        print("Received Ctrl+C, initiating graceful shutdown...")
+        shutdown_event.set()
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGINT, signal_handler)
+    worker_task = asyncio.create_task(worker.run())
+    try:
+        await shutdown_event.wait()
+    finally:
+        print("Shutting down worker...")
+        await worker.shutdown()
+        print("Worker shutdown complete")
+if __name__ == "__main__":
+    asyncio.run(main())
+
+This code sets up and runs a Temporal Worker that can execute the GreetSomeone Workflow. It connects to a local Temporal server and creates a Worker that polls the "greeting-tasks" Task Queue. The Worker is started as an asynchronous task, and the script then waits for a shutdown signal. When Ctrl+C is pressed, it triggers a graceful shutdown process for the Worker. This setup ensures that the Worker can be stopped safely, allowing any in-progress work to complete before shutting down. The use of asyncio allows for efficient handling of asynchronous operations and signal processing, making it suitable for long-running Worker processes that need to be able to shut down gracefully when required.

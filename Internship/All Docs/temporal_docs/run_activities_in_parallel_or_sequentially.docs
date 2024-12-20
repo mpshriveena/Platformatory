@@ -1,0 +1,174 @@
+Task 26: Run Activities in Parallel or Sequentially
+
+1) Sequentially:-
+
+Define the activity
+activity.py
+
+from temporalio import activity
+
+@activity.defn
+async def upper_case(name: str) -> str:
+    upper = name.upper()
+    return f"{upper}!"
+
+@activity.defn
+async def greet_in_english(name: str) -> str:
+    return f"Hello {name}!"
+
+Register the activity and start the worker.
+register_activity.py
+
+import asyncio
+from temporalio.client import Client
+from temporalio.worker import Worker
+from activity import greet_in_english, upper_case
+from activity_workflow import GreetingWorkflow
+async def main():
+    client = await Client.connect("localhost:7233", namespace="default")
+    worker = Worker(
+        client,
+        task_queue="greeting-activities",
+        workflows=[GreetingWorkflow],
+        activities=[upper_case,greet_in_english],
+    )
+    await worker.run()
+if __name__ == "__main__":
+    asyncio.run(main())
+
+python3 ../temporal_codes/activities/sequential_activity/register_activity.py
+
+Create workflow for the activity
+activity_workflow.py
+
+from datetime import timedelta
+from temporalio import workflow
+from activity import upper_case,greet_in_english  # Import activities from activity.py
+
+@workflow.defn
+class GreetingWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        upper_name = await workflow.execute_activity(
+            upper_case,
+            name,
+            start_to_close_timeout=timedelta(seconds=5),
+        )
+        greeting = await workflow.execute_activity(
+            greet_in_english,
+            upper_name,
+            start_to_close_timeout=timedelta(seconds=5),
+        )
+        return greeting
+	
+Execute the workflow
+execute_workflow.py
+
+import asyncio
+import sys
+from temporalio.client import Client
+from activity_workflow import GreetingWorkflow  # Import your workflow
+async def main():
+    client = await Client.connect("localhost:7233")
+    # Start the workflow
+    handle = await client.start_workflow(
+        GreetingWorkflow.run,
+        sys.argv[1],
+        id="greeting-workflow",
+        task_queue="greeting-activities",
+    )
+    print(f"Started workflow. Workflow ID: {handle.id}, RunID: {handle.result_run_id}")
+    # Wait for the result of the workflow
+    result = await handle.result()
+    print(f"Result: {result}")
+if __name__ == "__main__":
+    asyncio.run(main())
+
+Execute the workflow
+python3 ../temporal_codes/activities/sequential_activity/execute_workflow.py veena
+
+2) Parallel:-
+
+Define the activity
+activity.py
+
+from temporalio import activity
+
+@activity.defn
+async def greet_in_english(name: str) -> str:
+    return f"Hello {name}!"
+
+@activity.defn
+async def how_are_you(name: str) -> str:
+    return f"How are you, {name}?"
+
+Register the activity and start the worker.
+register_activity.py
+
+import asyncio
+from temporalio.client import Client
+from temporalio.worker import Worker
+from activity import greet_in_english, how_are_you
+from activity_workflow import GreetingWorkflow
+async def main():
+    client = await Client.connect("localhost:7233", namespace="default")
+    worker = Worker(
+        client,
+        task_queue="greeting-activities",
+        workflows=[GreetingWorkflow],
+        activities=[greet_in_english,how_are_you],
+    )
+    await worker.run()
+if __name__ == "__main__":
+    asyncio.run(main())
+
+python3 ../temporal_codes/activities/parallel_activity/register_activity.py
+
+Create workflow for the activity
+activity_workflow.py
+
+import asyncio
+from datetime import timedelta
+from temporalio import workflow
+from activity import greet_in_english, how_are_you  # Import activities from activity.py
+
+@workflow.defn
+class GreetingWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        # Use the activity inside the workflow
+        results = await asyncio.gather(
+            workflow.execute_activity(greet_in_english,name,start_to_close_timeout=timedelta(seconds=5)),
+            workflow.execute_activity(how_are_you,name,start_to_close_timeout=timedelta(seconds=5))
+        )
+        greetings = results[0]
+        well_being = results[1]
+        return f"{greetings}.{well_being}"
+	
+Execute the workflow
+execute_workflow.py
+
+import asyncio
+import sys
+from temporalio.client import Client
+from activity_workflow import GreetingWorkflow  # Import your workflow
+async def main():
+    client = await Client.connect("localhost:7233")
+    # Start the workflow
+    handle = await client.start_workflow(
+        GreetingWorkflow.run,
+        sys.argv[1],
+        id="greeting-workflow",
+        task_queue="greeting-activities",
+    )    
+    print(f"Started workflow. Workflow ID: {handle.id}, RunID: {handle.result_run_id}")
+    # Wait for the result of the workflow
+    result = await handle.result()
+    print(f"Result: {result}")
+if __name__ == "__main__":
+    asyncio.run(main())
+
+Execute the workflow
+python3 ../temporal_codes/activities/parallel_activity/execute_workflow.py veena
+
+We can see the visual representation of sequential and parallel execution in Temporal UI.

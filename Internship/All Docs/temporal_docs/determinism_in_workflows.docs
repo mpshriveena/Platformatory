@@ -1,4 +1,4 @@
-Task 7: Determinism in Workflows: Why Workflows Must Be Deterministic
+Task 9: Determinism in Workflows: Why Workflows Must Be Deterministic
 
 Introduction to Determinism in Temporal Workflows
 In Temporal, workflows are designed to be deterministic. Determinism refers to the property that a workflow must always produce the same result when executed with the same inputs, regardless of the number of retries, the time of execution, or the system’s state at the time. This is a fundamental requirement for ensuring that Temporal workflows are reliable, can be replayed, and can survive failures and system restarts without data loss.

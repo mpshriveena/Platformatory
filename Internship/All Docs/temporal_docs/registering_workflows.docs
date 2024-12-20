@@ -1,0 +1,21 @@
+Task 23: Registering Workflows: How to Register with the Temporal Server
+
+To register the workflow, first we have to initialize the worker. The worker is responsible for 
+registering the workflow with the temporal cluster
+worker.py
+
+import asyncio #to run asynchronous tasks concurrently
+from temporalio.client import Client #to interact with the temporal server
+from temporalio.worker import Worker #listen to task queue and execute workflows & activities
+from workflow import GreetSomeone
+async def main(): # an synchronous function
+    client = await Client.connect("localhost:7233", namespace="default")
+    # Run the worker
+    worker = Worker(client, task_queue="greeting-tasks", workflows=[GreetSomeone])
+    await worker.run()
+if __name__ == "__main__":
+    asyncio.run(main())
+
+python3 ../temporal_codes/workflow/simple_workflow/worker.py
+
+There will be no output

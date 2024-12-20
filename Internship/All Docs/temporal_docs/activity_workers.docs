@@ -1,0 +1,14 @@
+Task 14: Activity Workers: How Workers Execute Activities
+
+How workers execute activities:
+
+Polling for Tasks
+Activity workers are responsible for polling the Temporal service to get tasks (activities) from 
+the task queue. The task queue is where Temporal stores activities that need to be executed. 
+When a workflow schedules an activity, it is assigned to a specific task queue, and activity 
+workers that are listening to that queue will pick it up.
+
+Executing the Activity
+Once an activity worker receives a task, it executes the corresponding activity function. 
+Activities are defined using Python functions (or other supported languages), and the worker 
+executes these functions when they are scheduled.

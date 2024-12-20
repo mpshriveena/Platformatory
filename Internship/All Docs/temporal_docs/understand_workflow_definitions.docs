@@ -1,0 +1,23 @@
+Task 7: Understand Workflow Definitions: What Makes a Function a Workflow?
+
+What is workflow?
+A Workflow is a sequence of steps that defines the overall flow of your application.
+Eg: E-Commerce Order Processing Workflow
+Some of the important properties of workflow are
+--> Durability
+--> Deterministic Behavior
+--> Long-Running Capability
+--> State Management
+--> Error Handling and retry
+
+Workflow Definitions
+Eg:
+from temporalio import workflow
+@workflow.defn
+class GreetSomeone():
+    @workflow.run
+    async def run(self, name:str) -> str:
+        return f"Hello {name}!"
+
+What makes a function a workflow?
+@workflow.defn --> This decorater is making this a workflow.

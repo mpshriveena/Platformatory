@@ -1,0 +1,19 @@
+Task 18: Scaling Workers: Horizontal Scaling and Load Distribution
+
+Scaling Workers
+To handle increasing workloads, Temporal allows you to scale workers horizontally by 
+running multiple instances of a worker process. By running multiple worker instances, 
+you can increase the capacity of your Temporal system to handle more tasks simultaneously.
+
+Horizontal Scaling
+Running multiple instances of a worker can increase the throughput and fault tolerance of your Temporal system. Each worker instance can poll different task queues and handle different tasks concurrently, which is ideal for workloads that require parallel processing.
+worker1.start()  # For first worker
+worker2.start()  # For second worker
+worker3.start()  # For third worker
+When scaling workers horizontally, it's important to ensure that your system is configured to handle worker load distribution effectively, especially when multiple queues are involved.
+
+Dynamic Scaling
+We can also scale the number of worker instances dynamically based on the number of 
+tasks in the queue or system performance. Many cloud platforms allow you to auto-scale 
+resources based on task load, which can be integrated with Temporal to handle variable 
+workloads efficiently.

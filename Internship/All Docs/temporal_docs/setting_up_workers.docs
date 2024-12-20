@@ -1,0 +1,22 @@
+Setting Up Workers: Configuration and Best Practices
+
+Setting up workers:
+import asyncio
+from temporalio.client import Client
+from temporalio.worker import Worker
+from workflow import GreetSomeone
+async def main():
+    client = await Client.connect("localhost:7233", namespace="default")
+    # Run the worker
+    worker = Worker(client, task_queue="greeting-tasks", workflows=[GreetSomeone])
+    await worker.run()
+if __name__ == "__main__":
+    asyncio.run(main())
+
+Best Practices for Worker Configuration
+To ensure the optimal performance of your workers, consider the following best practices:
+    -->Use of Separate Workers for Different Task Queues
+    -->Configure Timeouts
+    -->Retries for Fault Tolerance
+    -->Scale Dynamically
+    -->Graceful Shutdown

@@ -1,0 +1,182 @@
+Task 24: Workflow Execution: Start, Signal, and Query a Workflow
+
+1) Starting the workflow:-
+
+There are two ways to start a workflow
+--> Through CLI
+--> Through custom code (client)
+
+The temporal CLI directly interacts with temporal server to start the workflow, handle workflow 
+cycle and so on
+When we are using custom code, we are creating a client and that client will interact with the 
+temporal server
+      --> Main advantage : Full programmatic control, handle results, errors, and dynamic inputs
+
+--> Through CLI
+temporal workflow start \
+    --type GreetSomeone \
+    --task-queue greeting-tasks \
+    --workflow-id my-first-workflow \
+    --input '"Veena"'
+Still no output
+
+There are two ways to see the output
+--> Through Temporal UI
+--> Through Temporal CLI using show command
+temporal workflow show --workflow-id my-first-workflow
+
+--> Through custom code
+client.py
+
+import asyncio
+import sys
+from workflow import GreetSomeone
+from temporalio.client import Client
+async def main():
+    # Create client connected to server at the given address
+    client = await Client.connect("localhost:7233") 
+    #await wont block other tasks while connection is being established
+    # Execute a workflow
+    handle = await client.start_workflow(
+        GreetSomeone.run,
+        sys.argv[1],
+        id="greeting-workflow",
+        task_queue="greeting-tasks",
+    )
+    print(f"Started workflow. Workflow ID: {handle.id}, RunID {handle.result_run_id}")
+    result = await handle.result() #Waits for the workflow to complete and retrieves the result
+    print(f"Result: {result}")
+if __name__ == "__main__":
+    asyncio.run(main())
+
+python3 ../temporal_codes/workflow/simple_workflow/client.py veena
+
+2) Signalling the workflow
+Signaling allows external systems to send messages or events to a running workflow, 
+triggering actions or changing its state.
+
+There are two ways to signal a workflow
+--> Through CLI
+--> Through custom code (client)
+
+--> Through custom code
+Let's first create a continuously running workflow
+workflow.py
+
+import asyncio
+from temporalio import workflow
+@workflow.defn
+class ProductsLeft:
+    def __init__(self):
+        self.products = 0
+    @workflow.run
+    async def run(self, products: int) -> int:
+        self.products = products
+        while self.products > 0:
+            await asyncio.sleep(1)
+            print(self.products)
+        return self.products
+    @workflow.signal
+    async def update_products(self, new_products: int):
+        print(f"Receive a signal to update the products to {new_products}")
+        self.products = new_products
+    @workflow.query
+    async def get_product_count(self) -> int:
+        print(f"Receive a query to get the products left")
+        return self.products
+
+worker.py
+
+import asyncio
+from temporalio.client import Client
+from temporalio.worker import Worker
+from workflow import ProductsLeft
+async def main():
+    client = await Client.connect("localhost:7233", namespace="default")
+    # Run the worker
+    worker = Worker(client, task_queue="products-tasks", workflows=[ProductsLeft])
+    print("Starting worker.....")
+    await worker.run()
+if __name__ == "__main__":
+    asyncio.run(main())
+
+python3 ../temporal_codes/workflow/signal_and_query/worker.py
+
+client.py
+
+import asyncio
+import sys
+from workflow import ProductsLeft
+from temporalio.client import Client
+from temporalio.client import WorkflowFailureError
+async def main():
+    try:
+        client = await Client.connect("localhost:7233")
+        workflow_handle = await client.start_workflow(
+        ProductsLeft.run,
+        int(sys.argv[1]),
+        id="products-workflow",
+        task_queue="products-tasks"
+    )
+        result = await workflow_handle.result()
+        print(f"Workflow finished with result: {result}")
+    except WorkflowFailureError as e:
+        print(f"Workflow was cancelled or terminated during execution")
+    except Exception as e:
+        print(f"Error in workflow execution: {str(e)}")
+asyncio.run(main())
+
+python3 ../temporal_codes/workflow/signal_and_query/client.py
+
+Now Let's signal the workflow
+signal_client.py
+
+import asyncio
+import sys
+from temporalio.client import Client
+from workflow import ProductsLeft
+
+async def signal_workflow():
+    client = await Client.connect("localhost:7233")
+    workflow_id = "products-workflow"
+    try:
+        signalled_result = await client.get_workflow_handle(workflow_id).signal(ProductsLeft.update_products, int(sys.argv[1]))
+        print(f"Products updated to {int(sys.argv[1])}" )
+    except Exception as e:
+        print(f"Error while signalling workflow: {e}")
+
+asyncio.run(signal_workflow())
+
+python3 ../temporal_codes/workflow/signal_and_query/signal_client.py
+
+--> Through Temporal CLI using signal command
+temporal workflow signal --workflow-id products-workflow --name update_products --input 48
+
+3) Querying a workflow
+Querying allows external systems to ask a running workflow for its current state or other 
+information without affecting its execution.
+
+There are two ways to query a workflow
+--> Through CLI
+--> Through custom code (client)
+
+--> Through CLI
+temporal workflow query --workflow-id=products-workflow --type=get_product_count
+
+--> Through custom code (client)
+query_client.py
+
+import asyncio
+from temporalio.client import Client
+from workflow import ProductsLeft
+async def query_workflow():
+    client = await Client.connect("localhost:7233")  # Adjust for your server
+    workflow_id = "products-workflow"
+    try:
+        queried_result = await client.get_workflow_handle(workflow_id).query(ProductsLeft.get_product_count)
+        print(f"Products left till now is {queried_result}" )
+    except Exception as e:
+        print(f"Error while canceling workflow: {e}")
+asyncio.run(query_workflow())
+
+python3 ../temporal_codes/workflow/signal_and_query/query_client.py

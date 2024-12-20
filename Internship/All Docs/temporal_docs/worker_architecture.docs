@@ -1,0 +1,33 @@
+Task 16: Worker Architecture: How Workers Interact with Temporal
+
+Worker Architecture
+
+The worker architecture consistes of following elements.
+    Worker Process:
+        A Worker Process is external to the Temporal Service and runs your application code.
+        It's responsible for polling Task Queues, executing Tasks, and communicating results back to the Temporal Service. What is a Worker Process?
+    Worker Entity:
+        A Worker Entity is an individual Worker within a Worker Process.
+        Each Worker Entity listens to a specific Task Queue and can contain both a Workflow Worker and an Activity Worker. What is a Worker Entity?
+    Task Queues:
+        Task Queues are the mechanism through which Workers receive work from the Temporal Service.
+        Multiple Workers can listen to the same Task Queue for load balancing and scalability. Background Terminology
+    Tasks:
+        Tasks are the units of work that Workers process. They can be Workflow Tasks, Activity Tasks, or Nexus Tasks.
+        Each Task contains the context needed for a Worker to make progress on a Workflow or Activity Execution. What is a Task?
+    Interaction with Temporal Service:
+        Workers maintain a long-polling connection to the Temporal Service.
+        They receive Tasks, execute them, and send results or Commands back to the Service. The SDK and Temporal Service relationship Part 2
+    Scalability:
+        You can run multiple Worker Processes, each potentially containing multiple Worker Entities.
+        This allows for better throughput, availability, and resource utilization. What does the component topology look like?
+    Workflow and Activity Registration:
+        Workers must register the Workflow Types and Activity Types they can execute.
+        All Workers polling the same Task Queue should be registered with the same types. How to run Worker Processes
+
+How Workers Interact with Temporal
+
+    Task Queue Polling: Workers poll task queues for tasks that need to be executed (either activities or workflows).
+    Task Execution: Once a task is retrieved from the task queue, the worker executes the corresponding activity or workflow code.
+    Temporal Server Interaction: Workers interact with the Temporal server to register workflows, poll task queues, report task completion, and handle retries.
+    Worker Configuration: Workers can be configured to handle multiple task queues and tasks concurrently, making it possible to scale horizontally.

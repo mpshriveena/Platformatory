@@ -1,0 +1,25 @@
+Task 21: Install and Set Up the SDK: Project Structure and Dependencies
+
+Install and setup the Python SDK
+Do the following steps to install python SDK in a virtual environment
+
+mkdir temporal-project
+cd temporal-project
+sudo apt install python3.8-venv  #Specify your python version
+python3 -m venv env
+python3 -m pip install temporalio
+pip install asyncio
+
+Project Structure and Organization
+
+When working with Temporal, it's essential to maintain a well-organized project structure. This ensures that your workflows, activities, and worker configurations are modular and scalable. Below is a typical project structure:
+
+my_temporal_project/
+├── workflows/
+│   └── my_workflow.py
+├── activities/
+│   └── my_activity.py
+├── workers/
+│   └── worker.py
+├── client.py
+└── requirements.txt

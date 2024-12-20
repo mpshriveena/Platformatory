@@ -1,0 +1,58 @@
+Task 28: Workflow replay: Replaying a workflow to debug it.
+
+What is Replaying a workflow?
+Replaying a workflow refers to the process of re-executing a workflow from the beginning, 
+using its historical execution data, without actually invoking the underlying activities again.
+
+Replaying does not re-run the actual activities. Instead, Temporal replays the workflow's decision
+logic and re-applies the events in the workflow's history. The activities themselves are not 
+executed again.
+
+Step 1: Fetch history
+History can be fetched in two ways:
+1) Through UI
+In Temporal UI, when a particular workflow is viewed, Event history is shown at the bottom.
+
+2) Through CLI
+Using workflow describe command, we can get a brief overview of execution time, IDs and result.
+temporal workflow describe --workflow-id greeting-workflow
+
+Complete history can be obtained from show command
+temporal workflow show --workflow-id=products-workflow
+
+To get the history in json format
+temporal workflow show --workflow-id greeting-workflow --output json
+
+To put the json output into a file
+temporal workflow show --workflow-id greeting-workflow --output json >>history.json
+temporal workflow show --workflow-id greeting-workflow --run-id 157f233f-de97-4fdf-a907-dd71548f312b  --output json >>history.json
+
+import json
+import asyncio
+from temporalio.worker import Replayer
+from temporalio.client import WorkflowHistory
+from workflow import GreetSomeone
+
+async def replay_workflow():
+    with open("/home/mpshriveena/Desktop/Platformatory/Daily Codes/Temporal/temporal_codes/workflow/replay_workflow/history.json", "r") as f:
+        history_json = json.load(f)
+#opens a JSON file containing the Workflow history and loads its contents into history_json.
+    events = history_json["events"]
+    workflow_id = "greeting-workflow"
+    history = {
+    'events': events
+    }
+# extract the events from the loaded JSON and prepare a history dictionary with the events.
+    workflow_history = WorkflowHistory.from_json(workflow_id, history)
+# creates a WorkflowHistory object from the workflow ID and the prepared history dictionary
+    replayer = Replayer(workflows=[GreetSomeone])
+# creates a Replayer object, registering the GreetSomeone Workflow
+    result = await replayer.replay_workflow(workflow_history)
+# replays the Workflow using the provided history and awaits the result    
+    payload = result.history.events[-1].workflow_execution_completed_event_attributes.result.payloads
+    result_data = payload[0].data.decode('utf-8')
+    print(f"Replayed Workflow Result: {result_data}")
+
+# Run the async function
+if __name__ == "__main__":
+    asyncio.run(replay_workflow())

@@ -1,0 +1,33 @@
+Task 7: Determinism in Workflows: Why Workflows Must Be Deterministic
+
+Introduction to Determinism in Temporal Workflows
+In Temporal, workflows are designed to be deterministic. Determinism refers to the property that a workflow must always produce the same result when executed with the same inputs, regardless of the number of retries, the time of execution, or the system’s state at the time. This is a fundamental requirement for ensuring that Temporal workflows are reliable, can be replayed, and can survive failures and system restarts without data loss.
+Determinism is vital in distributed systems, where events may occur in a different order during retries or restarts. Temporal ensures that workflows are repeatable and consistent by maintaining the history of events and replaying it when needed.
+
+Why Workflows Must Be Deterministic
+Temporal workflows must be deterministic for the following reasons:
+Workflow Replay
+Temporal provides the ability to replay workflows to restore their state after failures or when debugging. During a workflow replay, Temporal re-executes the workflow from its stored history, ensuring that the state at the time of replay matches the state during the original execution. If workflows were non-deterministic, the replay would produce different results each time, making it impossible to restore the workflow’s state accurately.
+For example, if a workflow includes operations like generating random numbers or calling external systems whose results vary each time, the replay would be inconsistent.
+
+Fault Tolerance
+Temporal's fault tolerance relies on the ability to retry workflows. If a workflow is non-deterministic, retries could lead to different outcomes, which would break the consistency and integrity of the workflow's execution. Determinism ensures that any failure can be recovered from by replaying the workflow from the point of failure and achieving the same result.
+For example, if an activity is retried after a failure, a deterministic workflow will always execute the same steps and produce the same result as the original execution.
+
+Event History
+Temporal uses an event history to track the progress of a workflow. Each event represents a specific action that has occurred during the workflow’s execution (e.g., activity starts, decisions made). The workflow’s state is reconstructed from this event history, and the workflow can be resumed or replayed using this history. If the workflow's behavior were non-deterministic, the event history would not accurately represent the sequence of actions, making it impossible to correctly replay or recover from failures.
+
+How Temporal Ensures Determinism
+Temporal employs several mechanisms to ensure that workflows remain deterministic:
+
+Event-Driven Model
+Temporal workflows are event-driven, meaning that each step in the workflow is triggered by an event. These events are logged and stored, and the workflow’s execution is determined entirely by the sequence of these events. Temporal workflows are guaranteed to follow the same path during replay, as long as the event history is the same.
+
+Avoiding Non-Deterministic Operations
+To ensure determinism, workflows must avoid non-deterministic operations, such as:
+    Randomness: Any operation that generates random values must be avoided, as different random values would yield different results during replay.
+    Example: Avoid using Python’s random.choice() directly in workflows. Instead, consider using a fixed input value or pass the random value as part of the workflow's parameters.
+    Time-dependent Logic: Workflows that depend on the system’s current time may produce different results when replayed. For example, calling time.time() directly in a workflow function introduces non-determinism.
+    Example: Instead of relying on real-time data, pass the timestamp as part of the workflow's parameters to ensure consistency.
+    External System Dependencies: Calling external APIs, databases, or services that may return different responses on each call introduces non-determinism.
+    Example: If the workflow involves an external service call, mock this service during tests or return predictable results within the workflow.

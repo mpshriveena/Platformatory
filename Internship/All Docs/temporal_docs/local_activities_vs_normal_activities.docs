@@ -1,0 +1,48 @@
+Task 15: Local Activities vs. Normal Activities: Use Cases and Differences
+Normal Activity
+A normal activity is the standard type of activity in Temporal. 
+These activities are executed by activity workers that listen for tasks in a task queue. 
+These activities can be executed remotely, which means the worker might be running on a 
+different machine or container from the Temporal service itself.
+
+When a workflow calls a normal activity, the following steps occur:
+    The workflow code schedules an activity.
+    The activity is sent to a task queue where the Temporal service stores it.
+    Activity workers poll the task queue and pick up the activity to execute it.
+    The activity executes on the worker and completes, sending the result back to the workflow.
+
+from temporalio import workflow
+from datetime import timedelta
+@workflow.defn
+class MyWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        return await workflow.execute_activity(
+            my_activity,
+            name,
+            start_to_close_timeout=timedelta(seconds=10),
+        )
+
+Local Activities
+A local activity is an activity that is executed directly within the context of the 
+same worker as the calling workflow. Unlike normal activities, 
+local activities do not involve sending tasks to a task queue. 
+Instead, they are executed synchronously within the workflow execution process itself.
+
+When a workflow calls a local activity, the following steps occur:
+    The workflow code schedules a local activity.
+    The local activity executes immediately in the same worker that is running the workflow.
+    The local activity’s result is returned directly to the workflow, 
+    without the need for task queue interaction.
+
+from temporalio import workflow
+from datetime import timedelta
+@workflow.defn
+class MyWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        return await workflow.execute_local_activity(
+            my_local_activity,
+            name,
+            start_to_close_timeout=timedelta(seconds=10),
+        )

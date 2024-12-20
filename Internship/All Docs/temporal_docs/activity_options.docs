@@ -1,0 +1,43 @@
+Task 13: Activity Options: Timeouts, Retries, and Heartbeats
+
+Activity Timeouts: 
+A timeout is a specified duration after which an operation (like a Workflow or Activity)
+is considered to have failed if it hasn't completed.
+    1) Schedule-To-Start Timeout
+    2) Start-To-Close Timeout
+    3) Schedule-To-Close Timeout
+    4) Activity Heartbeats
+
+Simple Diagram:
+
+                     --|-- ActivityTaskScheduled  -|-                       --|--
+                       |                           |                          |
+                       |                           |--- Schedule-To-Start     |
+                       |                           |                          |
+Activity Execution ----|   ActivityTaskStarted    -|-   -|-                   |---- Schedule-To Close
+                       |                                 |                    |
+                       |                                 |--- Start-To-Close  |
+                       |                                 |                    |
+                     --|-- ActivityTaskCompleted        -|-                 --|--
+
+Retries:
+Retries are automatic attempts to re-execute a failed Activity or Workflow. 
+retry_policy = RetryPolicy(
+    retries=20,  # Maximum attempts
+    initial_interval=5,  # Initial retry interval in seconds
+    backoff_coefficient=2,  # Exponential backoff
+    maximum_interval=60  # Max delay between retries in seconds
+)
+# Using the activity options in the worker
+worker = Worker(
+    client=client,
+    task_queue="example-task-queue",
+    activities=[unreliable_activity],
+    retry_policy=retry_policy
+)
+
+Heartbeats:
+What is an Activity Heartbeat in Temporal?
+An Activity Heartbeat is a ping from the Worker that is executing the Activity 
+to the Temporal Service. Each ping informs the Temporal Service that the Activity Execution 
+is making progress and the Worker has not crashed.

@@ -1,0 +1,16 @@
+Task 11: Workflow IDs and run IDs: Differences and usage.
+
+Workflow ID
+The Workflow ID is a unique identifier for a workflow. 
+It is used to track the workflow across multiple executions and allow workflows 
+to be managed over their lifecycle.
+Use Cases:
+    --> Uniqueness
+    --> Re-execution
+
+Run ID
+The Run ID is a unique identifier for a specific execution of a workflow. 
+This is generated automatically so that each execution is uniquely identifiable.
+Use Cases:
+    --> Multiple Runs
+    --> Tracking History

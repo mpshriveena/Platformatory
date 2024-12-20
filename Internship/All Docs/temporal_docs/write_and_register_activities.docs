@@ -1,0 +1,184 @@
+Task 25: Write and Register Activities
+
+workflows --> deterministic
+activities -- non-deterministic
+
+First,lets define the activity. Activities are defined using @activity.defn decorator
+activity.py
+
+from temporalio import activity
+@activity.defn
+async def greet_in_english(name: str) -> str:
+    return f"Hello {name}!"
+
+Next, we have to register the activity. Thisis basically running the worker while registering the
+activity
+register_activity.py
+
+import asyncio
+from temporalio.client import Client
+from temporalio.worker import Worker
+from activity import greet_in_english
+from activity_workflow import GreetingWorkflow
+async def main():
+    client = await Client.connect("localhost:7233", namespace="default")
+    worker = Worker(
+        client,
+        task_queue="greeting-activities",
+        workflows=[GreetingWorkflow], 
+        #worker will be able to execute these activities only when they are called by workflows
+        activities=[greet_in_english],
+    )
+    await worker.run()
+if __name__ == "__main__":
+    asyncio.run(main())
+
+Note: worker will be able to execute these activities only when they are called by workflows
+
+Run the worker and register the activity
+python3 ../temporal_codes/activities/simple_activity/register_activity.py
+
+Once activities are defined and registered, workflows can invoke them. Activities are 
+typically executed asynchronously from within workflows
+activity_workflow.py
+
+from datetime import timedelta
+from temporalio import workflow
+from activity import greet_in_english  # Import activities from activity.py
+
+@workflow.defn
+class GreetingWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        # Use the activity inside the workflow
+        greeting = await workflow.execute_activity( #call an activity from within the workflow
+            greet_in_english,
+            name,
+            start_to_close_timeout=timedelta(seconds=5),
+        )
+        return greeting
+
+Next we have to execute the workflow we just defined.
+execute_workflow.py
+
+import asyncio
+import sys
+from temporalio.client import Client
+from activity_workflow import GreetingWorkflow  # Import your workflow
+async def main():
+    client = await Client.connect("localhost:7233")
+    # Start the workflow
+    handle = await client.start_workflow(
+        GreetingWorkflow.run,
+        sys.argv[1],
+        id="greeting-workflow",
+        task_queue="greeting-activities",
+    )
+    print(f"Started workflow. Workflow ID: {handle.id}, RunID: {handle.result_run_id}")
+    # Wait for the result of the workflow
+    result = await handle.result()
+    print(f"Result: {result}")
+if __name__ == "__main__":
+    asyncio.run(main())
+
+Execute the workflow
+python3 ../temporal_codes/activities/simple_activity/execute_workflow.py veena
+
+Another Example: HTTP Activity (A non-deterministic Use Case)
+worker.py
+
+import asyncio
+import aiohttp
+from temporalio.client import Client
+from temporalio.worker import Worker
+from translate import TranslateActivities
+from greeting import GreetSomeone
+async def main():
+    client = await Client.connect("localhost:7233", namespace="default")
+    # Run the worker
+    async with aiohttp.ClientSession() as session:
+        activities = TranslateActivities(session)
+        worker = Worker(
+            client,
+            task_queue="greeting-tasks",
+            workflows=[GreetSomeone],
+            activities=[activities.greet_in_spanish],
+        )
+        print("Starting the worker....")
+        await worker.run()
+if __name__ == "__main__":
+    asyncio.run(main())
+
+python3 ../temporal_codes/activities/httpactivity/worker.py
+
+translate.py
+
+import urllib.parse
+from temporalio import activity
+class TranslateActivities:
+    def __init__(self, session):
+        self.session = session
+    @activity.defn
+    async def greet_in_spanish(self, name: str) -> str:
+        base = f"http://localhost:9999/get-spanish-greeting"
+        url = f"{base}?name={urllib.parse.quote(name)}"
+        async with self.session.get(url) as response:
+            response.raise_for_status()
+            return await response.text()
+greeting.py
+
+from datetime import timedelta
+from temporalio import workflow
+with workflow.unsafe.imports_passed_through():
+    from translate import TranslateActivities
+@workflow.defn
+class GreetSomeone:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        greeting = await workflow.execute_activity_method(
+            TranslateActivities.greet_in_spanish,
+            name,
+            start_to_close_timeout=timedelta(seconds=5),
+        )
+        return greeting
+
+starter,py
+
+import asyncio
+import sys
+from greeting import GreetSomeone
+from temporalio.client import Client
+async def main():
+    # Create client connected to server at the given address
+    client = await Client.connect("localhost:7233")
+    # Execute a workflow
+    handle = await client.start_workflow(
+        GreetSomeone.run,
+        sys.argv[1],
+        id="greeting-workflow",
+        task_queue="greeting-tasks",
+    )
+    print(f"Started workflow. Workflow ID: {handle.id}, RunID {handle.result_run_id}")
+    result = await handle.result()
+    print(f"Result: {result}")
+if __name__ == "__main__":
+    asyncio.run(main())
+
+python3 ../temporal_codes/activities/httpactivity/starter.py
+
+microservice.py
+
+from flask import Flask, request
+app = Flask(__name__)
+@app.route('/get-spanish-greeting', methods=['GET'])
+def spanish_greeting_handler():
+    name = request.args.get('name', None)
+    if name:
+        translation = f"¡Hola, {name}!"
+        return translation,  200
+    else:
+        return "Missing required 'name' parameter.", 400
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=9999)
+
+python3 ../temporal_codes/activities/httpactivity/worker.py

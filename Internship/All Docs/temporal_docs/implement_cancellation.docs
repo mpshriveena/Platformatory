@@ -1,0 +1,17 @@
+Task 34: Implement Cancellation: Handle Clean-Up Tasks
+
+To cancel workflows, we can use cancel()
+
+cancel_client.py
+
+import asyncio
+from temporalio.client import Client
+async def cancel_workflow():
+    client = await Client.connect("localhost:7233")  # Adjust for your server
+    workflow_id = "greeting-workflow"
+    try:
+        await client.get_workflow_handle(workflow_id).cancel()
+        print(f"Cancellation request has been sent to Workflow {workflow_id}")
+    except Exception as e:
+        print(f"Error while canceling workflow: {e}")
+asyncio.run(cancel_workflow())

@@ -1,0 +1,15 @@
+Task 8: Workflow State and History: How Temporal Tracks Workflow State
+Workflow history:
+The workflow history is a sequence of events that records every step and decision 
+taken during the execution of a workflow, including the activities that were executed, 
+any decisions that were made, and any signals or timeouts that occurred.
+
+Workflow State:
+The state of a Workflow refers to the current condition or status of the Workflow Execution.
+
+How Temporal tracks workflow state.
+Temporal tracks Workflow state through a mechanism called Event Sourcing, 
+which is implemented using an Event History.
+
+Event Sourcing:
+Temporal records every action and decision made during a Workflow Execution in an Event History.

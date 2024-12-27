@@ -1,0 +1,30 @@
+Deploying Your Application to Production
+
+1) The Deployment Landscape
+Temporal Cluster Services
+Frontend
+An API gateway that validates and routes inbound calls
+History
+Maintains history and moves execution progress forward
+Matching
+Host task queues and matches workers with Tasks
+Worker Services
+Runs internal system workflows
+
+2) Configuring a Temporal Client for Production
+
+Configuring Client for a Non-Local Cluster
+client = await Client.connect("mycluster.example.com:7233", namespace="my-namespace")
+
+Using temporal to Interact with a Remote Cluster
+$ temporal workflow list \
+    --address mycluster.example.com:7233 \
+    --namespace my-namespace
+
+To use temporal with a secure cluster, you must configure it with the same options used to create a Client through code. The example shown here uses options equivalent to the code sample shown above it.
+
+temporal workflow list \
+  --address mycluster.example.com:7233 \
+  --namespace operations \
+  --tls-cert-path /home/myuser/tls/certificate.pem \
+  --tls-key-path /home/myuser/tls/private.key

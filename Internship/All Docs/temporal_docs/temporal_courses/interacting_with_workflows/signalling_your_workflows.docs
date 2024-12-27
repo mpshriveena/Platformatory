@@ -1,0 +1,146 @@
+Signaling Your Workflows
+
+1) What Are Signals?
+
+A Signal is a message sent asynchronously to a running Workflow Execution which can be used to change the state and control the flow of a Workflow Execution. 
+It can only deliver data to a Workflow Execution that has not already closed.
+    --> User Interactions in Web Applications
+    --> Processing Events
+    --> Frequently Changing Data Interactions
+Signals are a powerful feature in Temporal, enabling Workflows to be dynamic and responsive to external events.
+
+2) Developing Signals
+
+There are two steps for adding support for a Signal to your Workflow code:
+    --> Defining the Signal
+    --> Handling the Signal
+
+Handling a Signal
+
+workflow.py
+
+import asyncio
+from temporalio import workflow
+from typing import List
+@workflow.defn
+class SignalWorkflow:
+    def __init__(self) -> None:
+        self._pending_greetings: asyncio.Queue[str] = asyncio.Queue()
+        self._exit = False
+
+    @workflow.run
+    async def run(self) -> List[str]:
+        greetings: List[str] = []
+        while True:
+            print(f"Greeting: {greetings}")
+            await workflow.wait_condition(
+                lambda: not self._pending_greetings.empty() or self._exit
+            )
+
+            while not self._pending_greetings.empty():
+                greetings.append(f"Hello, {self._pending_greetings.get_nowait()}")
+                print(f"Greeting: {greetings}")
+
+            if self._exit:
+                return greetings
+
+    @workflow.signal
+    async def submit_greeting(self, name: str) -> None:
+        await self._pending_greetings.put(name)
+
+    @workflow.signal
+    def exit(self) -> None:
+        self._exit = True
+
+3) How to Send Signals
+
+Send a Signal from a Temporal Client
+
+Update Signal:
+
+import asyncio
+import sys
+from temporalio.client import Client
+from workflow import SignalWorkflow
+async def signal_workflow():
+    client = await Client.connect("localhost:7233")
+    workflow_id = "signal2-workflow"
+    try:
+        signalled_result = await client.get_workflow_handle(workflow_id).signal(SignalWorkflow.submit_greeting, sys.argv[1])
+        print(f"Greetings updated to {sys.argv[1]}" )
+    except Exception as e:
+        print(f"Error while signalling workflow: {e}")
+asyncio.run(signal_workflow())
+
+Exit Sugnal:
+
+import asyncio
+import sys
+from temporalio.client import Client
+from workflow import SignalWorkflow
+async def signal_workflow():
+    client = await Client.connect("localhost:7233")
+    workflow_id = "signal2-workflow"
+    try:
+        signalled_result = await client.get_workflow_handle(workflow_id).signal(SignalWorkflow.exit)
+        print(f"Exited" )
+    except Exception as e:
+        print(f"Error while signalling workflow: {e}")
+asyncio.run(signal_workflow())
+
+Send a Signal from Within a Workflow
+
+Workflows can also send Signals to other Workflows. This is known as an External Signal.
+When an External Signal is sent:
+    --> A SignalExternalWorkflowExecutionInitiated Event appears in the sender's Event History. This Event type contains the Signal name, as well as a Signal.
+    --> A WorkflowExecutionSignaled Event appears in the recipient's Event History.
+
+Send a Signal with the Temporal CLI
+temporal workflow signal --workflow-id="signal2-workflow" --name="submit_greeting" --input=\"M\ P\ Shri\ Veena\"
+
+4) Signal-With-Start
+
+import asyncio
+import sys
+from workflow import SignalWorkflow
+from temporalio.client import Client
+from temporalio.client import WorkflowFailureError
+
+async def main():
+    try:
+        client = await Client.connect("localhost:7233")
+        workflow_handle = await client.start_workflow(
+        SignalWorkflow.run,
+        id="signal2-workflow",
+        task_queue="signal2-tasks",
+        start_signal="first_greeting",
+        start_signal_args=["User Signal with Start"],
+    )
+        result = await workflow_handle.result()
+        print(f"Workflow finished with result: {result}")
+    except WorkflowFailureError as e:
+        print(f"Workflow was cancelled or terminated during execution")
+    except Exception as e:
+        print(f"Error in workflow execution: {str(e)}")
+asyncio.run(main())
+
+5) Common Problems with Signals and Their Workarounds
+
+Limiting Signals
+The Temporal Service imposes a limit of 2,000 pending outgoing Signal requests per Workflow Execution (to emphasize, the limit is on the Workflow that sends the Signal, not the Workflow that receives it)
+A single Workflow Execution can't receive more than 10,000 Signals in its entire lifespan, and its history can't exceed 51,200 events or 50 MB
+
+Unhandled Command
+In scenarios where a Workflow receives a high volume of Signals in a short period of time, it might not process all of them before attempting to complete or transition to another state. This situation leads to an UnhandledCommand error because Temporal expects all Signals (new Events) to be addressed before the Workflow can proceed or close.
+
+6) What is the Entity Workflow Pattern?
+
+Important Considerations:
+    Handling Asynchronous Work
+    Payload Size Limitations
+
+7) Signals in the Event History
+
+
+
+

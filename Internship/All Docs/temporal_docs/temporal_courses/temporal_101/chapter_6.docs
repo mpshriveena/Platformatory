@@ -1,0 +1,20 @@
+Temporal 101 with Python
+
+Chapter 6: Modifying an existing workflow
+
+Input Parameters and Return Values
+Backwards compatibility is an important consideration in Temporal
+Temporal recommends that your Workflow Function takes a single input parameter
+
+Determinism
+Workflow must be deterministic
+each execution of a given Workflow must produce the same output, given the same input
+shouldn't do things like work with random numbers
+SDK provides safe alternatives
+
+Versioning
+With Versioning, you can modify your Workflow Definition so that new executions use the updated code, while existing ones continue running the original version
+
+Restarting the Worker Process
+After making changes to your application, you'll need to deploy them to the server.
+With most Temporal SDKs, you must restart the Worker for your code changes to take effect. While the Python SDK uses a sandbox which automatically reloads the Workflow from disk each execution, making this restart unnecessary, this is an implementation detail specific to the Temporal Python SDK and may change in the future. Therefore, to ensure proper execution, we recommend stopping your worker and restarting it every time you make a change to your code.

@@ -1,0 +1,35 @@
+Raising and Handling Exceptions
+
+1) Raising Exceptions from Activities
+
+Raising ApplicationError
+raise ApplicationError(
+    f"Invalid credit card number: {credit_card_number}",
+    type="InvalidChargeAmount",
+)
+When raising an ApplicationError, you must provide a message and optionally a String type used to identify the failure
+Exceptions raised in Activities are converted to an ApplicationError and then wrapped in an ActivityError. This wrapper provides context such as:
+    Activity Type: Helps in identifying which specific activity failed.
+    Retry Attempts: Shows how many times the Activity was retried according to the retry policy configured.
+    Original Cause: The reason for the failure is the cause field. For example, if an Activity Execution times out, the cause is a TimeoutError.
+
+2) Raising Exceptions from Workflows
+
+Workflow Task Failures
+A Workflow Task Failure is an unexpected situation resulting from failure to process a Workflow Task. This could be triggered by raising an exception in your Workflow code. Any exception that does not extend Temporal's TemporalError exception is considered to be a Workflow Task Failure. These types of failures will cause the Workflow Task to be retried by default.
+
+Workflow Execution Failures
+An ApplicationError, an extension of TemporalError, can be raised in a Workflow to fail the Workflow Execution. Workflow Execution Failures put the Workflow Execution into the "Failed" state and no more attempts will be made in progressing this execution, by default.
+
+3) Handling Exceptions
+
+try/except block
+
+4) Non-Retryable Errors for Activities
+
+raise ApplicationError(
+    f"Invalid credit card number: {credit_card_number}",
+    type="InvalidChargeAmount",
+    non_retryable=True,
+)
+

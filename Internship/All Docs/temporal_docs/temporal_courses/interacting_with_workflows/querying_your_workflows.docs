@@ -1,0 +1,46 @@
+Querying Your Workflows
+
+1) What Are Queries?
+
+A Workflow Execution can run for any length of time but has just one opportunity to return data - at the end of its execution. Often, we need to retrieve the state during or even after the execution. That is where a Query comes into play. For example, you might want to query the current state of your Workflow Execution for:
+    --> Monitoring Progress of Long-Running Workflows
+    --> Retrieving Results
+Unlike Signals, Queries may not mutate the state of the Workflow Execution
+
+2) Developing Queries
+
+@workflow.query
+def greeting(self) -> str:
+    return self._greeting
+
+3) Sending a Query with the SDK
+
+from workflow import GreetingWorkflow
+result = await handle.query(GreetingWorkflow.greeting)
+
+temporal workflow query \
+    --workflow-id="GreetingWorkflow" \
+    --type="greeting" \
+    --input=\"User\ 1\"
+
+temporal workflow query \
+    --workflow-id="products-workflow" \
+    --type="get_product_count"
+
+Querying Completed Workflows
+You can query completed Workflows as long as you still have a Worker running for that Workflow
+
+4) Dynamic Queries
+
+A Dynamic Query is a Query that is invoked dynamically at runtime if no other Query with the same name is registered.
+@workflow.query(dynamic=True)
+def dynamic_query(self, input: str, args: Sequence[RawValue]) -> str:
+    return self._greeting
+
+Dynamic Signals
+
+A Dynamic Signal in Temporal is a Signal that is invoked dynamically at runtime if no other Signal with the same input is registered
+@workflow.signal(dynamic=True)
+async def dynamic_signal(self, name: str, args: Sequence[RawValue]) -> None:
+    await self._pending_greetings.put(name)
+

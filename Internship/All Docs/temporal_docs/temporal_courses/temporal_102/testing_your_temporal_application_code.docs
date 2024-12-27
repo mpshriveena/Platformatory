@@ -1,0 +1,122 @@
+Testing Your Temporal Application Code
+
+1) Unit Testing Primer for Python (Optional)
+
+Unit Testing in Python
+The standard for unit testing in Python is the pytest testing framework. This framework is often used with third-party libraries that provide additional features.
+
+async def sum_numbers(first, second):
+    return first + second
+
+import pytest
+@pytest.mark.asyncio
+def test_sum_numbers():
+    result = sum_numbers(2, 5)
+    expected = 7
+    assert result == expected
+
+python -m pytest
+
+2) Validating Correctness of Temporal Application Code
+The temporalio.testing Package
+The Temporal Python SDK's testing package provides support for unit and functional testing of both Workflow and Activity code. Most tests will involve some combination of the following three types of tests defined in this package.
+
+WorkflowEnvironment
+The WorkflowEnvironment class provides a runtime environment used to test a Workflow. When running your Workflow code within the test environment, some aspects of its execution will work differently to better support testing. For example, Timers will "skip time" by firing without their normal delay, enabling you to quickly test long-running Workflows.
+
+ActivityEnvironment
+The ActivityEnvironment type is similar to WorkflowEnvironment, but used for testing Activities.
+
+Running Your Tests
+You can run the tests for your Temporal application as you would any other tests in Python:
+
+python -m pytest
+By default, the output will specify whether the tests passed or failed, but will only list individual test cases within that suite if they fail.
+
+3) Testing Activities
+
+from temporalio import activity
+class SquareActivities:
+    @activity.defn
+    async def square(self, number: int) -> int:
+        return number * number
+
+import pytest
+from temporalio.testing import ActivityEnvironment
+from activities import SquareActivities
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "input, output",
+    [(5, 25), (-5, 25)],
+)
+async def test_square(input, output):
+    activity_environment = ActivityEnvironment()
+    activities = SquareActivities()
+    assert output == await activity_environment.run(activities.square, input)
+
+4) Testing Workflows
+
+Workflow Implementation
+from temporalio import workflow
+from activities import SquareActivities
+@workflow.defn
+class SumOfSquaresWorkflow:
+    @workflow.run
+    async def calculate_sum_of_squares(self, first: int, second: int) -> int:
+        square_one = await workflow.execute_activity_method(
+            SquareActivities.square,
+            first,
+            start_to_close_timeout=timedelta(seconds=5),
+        )
+        square_two = await workflow.execute_activity_method(
+            SquareActivities.square,
+            second,
+            start_to_close_timeout=timedelta(seconds=5),
+        )
+        return square_one + square_two
+
+Workflow Test
+import pytest
+from temporalio.testing import WorkflowEnvironment
+from temporalio.worker import Worker
+from workflow import SumOfSquaresWorkflow
+from activities import SquareActivities
+@pytest.mark.asyncio
+async def test_sum_of_squares_positive():
+    async with await WorkflowEnvironment.start_time_skipping() as env:
+        activities = SquareActivities()
+        async with Worker(
+            env.client,
+            task_queue="test-math-queue",
+            workflows=[SumOfSquaresWorkflow],
+            activities=[activities.square],
+        ):
+            result = await env.client.execute_workflow(
+                SumOfSquaresWorkflow.calculate_sum_of_squares,
+                5,
+                6,
+                id="test-sum-of-squares",
+                task_queue="test-math-queue",
+            )
+            assert 61 == result
+@pytest.mark.asyncio
+async def test_sum_of_squares_negative():
+    async with await WorkflowEnvironment.start_time_skipping() as env:
+        activities = SquareActivities()
+        async with Worker(
+            env.client,
+            task_queue="test-math-queue",
+            workflows=[SumOfSquaresWorkflow],
+            activities=[activities.square],
+        ):
+            result = await env.client.execute_workflow(
+                SumOfSquaresWorkflow.calculate_sum_of_squares,
+                5,
+                -9,
+                id="test-sum-of-squares",
+                task_queue="test-math-queue",
+            )
+            assert 106 == result
+
+5) Mocking Activities for Workflow Tests
+

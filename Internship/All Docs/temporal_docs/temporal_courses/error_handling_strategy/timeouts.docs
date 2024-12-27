@@ -1,0 +1,99 @@
+Timeouts
+
+1) What are Timeouts?
+
+A timeout is a predefined duration provided for an operation to complete its task. For example, when you visit a web page in your browser a timeout is set.
+
+2) Activity Timeouts
+    1) Schedule-To-Start Timeout
+    2) Start-To-Close Timeout
+    3) Schedule-To-Close Timeout
+
+                     --|-- ActivityTaskScheduled  -|-                       --|--
+                       |                           |                          |
+                       |                           |--- Schedule-To-Start     |
+                       |                           |                          |
+Activity Execution ----|   ActivityTaskStarted    -|-   -|-                   |---- Schedule-To Close
+                       |                                 |                    |
+                       |                                 |--- Start-To-Close  |
+                       |                                 |                    |
+                     --|-- ActivityTaskCompleted        -|-                 --|--
+
+3) Workflow Timeouts
+
+Workflow Execution Timeout
+This timeout restricts the maximum amount of time that a single Workflow Execution can be executed, including retries and any usage of Continue-As-New.
+default --> infinite
+result = await client.execute_workflow(
+    MyWorkflow.run,
+    input,
+    id=f"my-running-workflow-{id}",
+    task_queue=TASK_QUEUE_NAME,
+    execution_timeout=timedelta(seconds=20)
+)
+
+Workflow Run Timeout
+A Workflow Run is the instance of a specific Workflow Execution.
+Due to the potential for Workflow Retries or Continue-as-New, a Workflow Execution may have multiple Workflow runs. For example, if a Workflow that specifies a Retry Policy initially fails and then succeeds during the next retry attempt, there is a single Workflow Execution that spans two Workflow Runs. Both runs will share the same Workflow ID but have a unique Run ID to distinguish them.
+default --> same as Workflow Execution Timeout.
+result = await client.execute_workflow(
+        MyWorkflow.run,
+        input,
+        id=f"my-running-workflow-{id}",
+        task_queue=TASK_QUEUE_NAME,
+        run_timeout=timedelta(seconds=30)
+    )
+
+Workflow Task Timeout
+Workflow Task Timeout restricts the maximum amount of time that a Worker can execute a Workflow Task, beginning when the Worker has accepted that Workflow Task through its completion.
+default --> 10 seconds
+Although you can extend the timeout up to the maximum value of 120 seconds, it’s not recommended to increase this value.
+result = await client.execute_workflow(
+    MyWorkflow.run,
+    input,
+    id=f"my-running-workflow-{id}",
+    task_queue=TASK_QUEUE_NAME,
+    task_timeout=timedelta(seconds=25)
+)
+
+Best Practices
+Unlike Activity Timeouts, we generally do not recommend setting Workflow Timeouts.
+If you need to perform an action inside your Workflow after a specific period of time, we recommend using a Timer.
+
+4) Activity Heartbeats
+
+An Activity Heartbeat is a periodic message sent by the Activity to the Temporal Service. This serves multiple purposes:
+--> Progress Indication
+--> Worker Health Check
+--> Cancellation Detection
+
+We recommend that every Activity that does not complete immediately should implement Heartbeating and set a HeartbeatTimeout.
+How to Send a Heartbeat Message
+
+To Heartbeat in an Activity, call heartbeat():
+
+for x in range(0, 10):
+    activity.heartbeat(x)
+    activity.logger.info(f"Heartbeat: {x}")
+    await asyncio.sleep(7)
+
+Heartbeats and Cancellations
+For an Activity to be cancellable, it must perform Heartbeating.
+
+Heartbeat Timeout
+A Heartbeat Timeout is the maximum time allowed between Activity Heartbeats.
+A heartbeat_timeout must be set in order for Temporal to track the Heartbeats sent by the Activity. If this Timeout is not set, any Heartbeats sent by the Activity will be ignored.
+    result = await workflow.execute_activity_method(
+        HeartbeatActivities.greeting,
+        name,
+        start_to_close_timeout=timedelta(minutes=5),
+        heartbeat_timeout=timedelta(seconds=10),
+    )
+long-running Activities --> long start_to_close Timeout
+heartbeat_timeout --> short
+
+Heartbeat Throttling
+Heartbeats may not always be sent to the Temporal Service; they may be throttled by the Worker. 
+Throttling allows the Worker to reduce network traffic and load on the Temporal Service by suppressing Heartbeats that aren’t necessary to prevent a Heartbeat Timeout. 
+While this may result in some messages not being delivered to the Temporal Service, throttling does not apply to the final Heartbeat message in the case of Activity Failure. 
+

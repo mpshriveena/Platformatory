@@ -1,0 +1,72 @@
+Finding Workflows with Search Attributes
+
+1) What is the Temporal Visibility Feature?
+
+The Visibility store facilitates the listing and filtering of Workflow Executions. This provides you with a detailed view of what's happening in your Temporal Cluster.
+
+What is a List Filter?
+A List Filter in Temporal is composed of three main components:
+    Search Attribute Names: WorkflowType, ExecutionStatusSearch 
+    Attribute Values: ExecutionStatus = 'Completed'
+    Operators=, != (not equal), >, >=, <, <=, logical operators like AND, OR
+WorkflowType = "pizzaWorkflow" AND ExecutionStatus = "Running"
+
+Applying a List Filter in the Web UI
+You can apply a List Filter in the Temporal Web UI by entering it into the text field above the table listing Workflow Executions and then clicking the Search button.
+
+Applying a List Filter with a Command
+temporal workflow list --query 'WorkflowType = "pizzaWorkflow" AND ExecutionStatus = "Running"'
+
+2) What is a Search Attribute?
+
+A Search Attribute is an indexed field, such as a label or tag added to each execution.
+Because this data is not encrypted, we advise against using confidential information in Search Attribute values.
+Temporal provides some default Search Attributes. For example, ExecutionStatus refers to the current state of your Workflow Executions (e.g., Running, Completed, Failed).
+For business logic in which you need to get information about a Workflow Execution, consider one of the following:
+    Storing state in a local variable and exposing it with a Query
+    Storing and retrieving state in an external datastore via Activities
+Default Search Attributes
+A Temporal Cluster has a set of default Search Attributes already available. Default Search Attributes are set globally in any Namespace. These Search Attributes are created when the initial index is created.
+
+3) Custom Search Attributes
+
+Custom Search Attributes must be one of the following types:
+    --> Bool
+    --> Datetime
+    --> Double
+    --> Int
+    --> Keyword
+    --> KeywordList
+    --> Text
+
+4) How to Create Custom Search Attributes
+
+On Self-Hosted Temporal Cluster
+temporal operator search-attribute create --namespace yournamespace --name isOrderFailed --type bool
+
+On Temporal Cloud
+tcld namespace search-attributes add --namespace YourNamespace --search-attribute "CustomSA".
+
+5) How to Use Custom Search Attributes
+
+customer_id_key = SearchAttributeKey.for_keyword("CustomerId")
+misc_data_key = SearchAttributeKey.for_text("MiscData")
+handle = await client.start_workflow(
+    GreetingWorkflow.run,
+    id="search-attributes-workflow-id",
+    task_queue="search-attributes-task-queue",
+    search_attributes=TypedSearchAttributes([
+        SearchAttributePair(customer_id_key, "customer_1"),
+        SearchAttributePair(misc_data_key, "customer_1_data")
+    ]),
+)
+
+Finding Workflows by Search Attributes
+async for workflow in client.list_workflows('WorkflowType="GreetingWorkflow"'):
+    print(f"Workflow: {workflow.id}")
+
+Removing a Search Attribute from a Workflow
+workflow.upsert_search_attributes(TypedSearchAttributes([
+    SearchAttributePair(customer_id_key, [])
+]))
+

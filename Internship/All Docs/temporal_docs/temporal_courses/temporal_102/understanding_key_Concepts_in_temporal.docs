@@ -1,0 +1,34 @@
+understanding_key_Concepts_in_temporal
+
+What is a Durable Execution System?
+A durable execution system ensures that the code in your application runs reliably and correctly, even in the face of adversity. It maintains state, allowing your code to automatically recover from failure, regardless of whether that failure was caused by a small problem, such as a network timeout, or a big one, such as a kernel panic on a production application server.
+
+How Errors Affect Workflow Execution
+Activity Errors
+
+Activities are useful to encapsulate parts of the Workflow that are prone to failure
+For not retrying activities for specific errors, configure non_retryable_error_types
+
+Default retry policy for activities
+retry_policy = RetryPolicy(
+    initial_interval=1,
+    backoff_coefficient=2,
+    maximum_interval=100
+)
+
+Workflow Errors
+-->Workflow Task Failures
+-->Workflow Execution Failures
+
+Workflow Task Failures
+A Workflow Task Failure is an unexpected situation failing to process a Workflow Task
+Any exception that does not extend Temporal's FailureError exception is considered a Workflow Task Failure.
+Retried
+
+Workflow Execution Failures
+An ApplicationError is an extension of FailureError.
+ApplicationError can be raised in a Workflow to fail the Workflow Execution
+Not retried
+
+Exceptions raised by application code are automatically converted into an language-neutral format by the Temporal Worker called ApplicationError
+

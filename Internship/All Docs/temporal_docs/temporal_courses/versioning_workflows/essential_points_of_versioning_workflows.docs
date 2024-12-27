@@ -1,0 +1,19 @@
+Essential Points of Versioning Workflows
+The following is a summary of the most essential things that you have learned during the course.
+
+Overview
+Temporal Versioning is a feature that helps manage non-deterministic and non-forward-compatible changes in your Workflow code. Depending on your use case, the longevity of your Workflow Executions, and your organizational overhead, you can implement Versioning by changing Workflow Types or by using the Patching API. Each provides its own advantages.
+
+Versioning Methods
+There are multiple approaches available to you: the Patching APIs, and Workflow Type-based versioning.
+Patching allows you to update the behavior of currently-running Workflow Executions without redeploying. Versioning with Workflow Types lets you duplicate and track your logic without needing to leverage additional platform features.
+
+Recommended Best Practices for Versioning
+    --> Be careful about nested loops when using Patching — you may end up creating more technically separate branches of your Workflow than you realize.
+    --> Redeploy your Workers as frequently as makes sense for your operation. You can always add more workers for each version of a Task Queue that you're maintaining until you're sure it's safe to cut over versions — Temporal provides isolation between your old and new code revisions.
+
+Task Queues and Polling
+When a Worker starts, it opens long poll connections to the server. If there are tasks in the queue the worker is polling from, the server will dispatch a task to the worker, so the worker can execute it. The Temporal CLI polling methods available will return results as long as a queue has been polled by a Worker within the last five minutes.
+
+Other Considerations
+Like all of the Temporal platform, these Versioning features are designed to provide durable execution through replayability. Adopting Versioning early and using it consistently will help encode your business logic into your use of Temporal.

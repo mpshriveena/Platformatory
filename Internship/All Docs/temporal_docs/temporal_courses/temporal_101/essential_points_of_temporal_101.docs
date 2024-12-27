@@ -1,0 +1,32 @@
+Essential Points of Temporal 101 Course
+
+* Temporal guarantees the durable execution of your applications
+    -->In Temporal, Workflows are defined through code (using a Temporal SDK)
+
+* Temporal Clusters orchestrate code execution
+    -->Workers are responsible for actually executing the code
+    -->The Frontend Service is responsible for accepting requests from clients and routing them to the appropriate backend service if necessary. These requests, as well as communication among these services, use gRPC and can be secured with TLS.
+
+* The Temporal Cluster maintains dynamically-created task queues
+    -->Workers continuously poll a task queue and accept tasks if they have spare capacity
+    -->You can increase application scalability by adding more Workers
+    -->You must restart Workers after deploying a code change
+
+* There are multiple ways of deploying a self-hosted Temporal cluster
+    -->Temporal Cloud, which offers consumption-based pricing, is a convenient alternative to hosting your own cluster
+    -->Migrating to or from Temporal Cloud requires very little change to application code
+
+* Namespaces are used for isolation within a cluster
+    -->You might create namespaces to logically separate based on application status or ownership
+
+* In the Python SDK, a Temporal Workflow is defined through a class
+    -->Activities are defined through functions
+
+* Activities encapsulate unreliable or non-deterministic code
+    -->They are automatically retried upon failure
+    -->You can customize retry behavior through a Retry Policy
+
+* The Web UI is a powerful tool for gaining insight into your application
+    -->It displays current and recent Workflow Executions
+    -->The Web UI shows inputs, outputs, and event history
+

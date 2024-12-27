@@ -1,0 +1,99 @@
+Temporal 101 with Python
+
+Chapter 3: Developing a Workflow
+
+Writing a Workflow Definition
+
+python --> class --> workflow definition
+
+Input Parameters and Return Values
+    1) Values Must Be Serializable
+        Temporal maintains information about current and past Workflow Executions
+        --> UI to explore
+        most of the types are all handled automatically
+    2) Data Confidentiality
+        custom Data Converter to encrypt the data
+    3) Avoid Passing Large Amounts of Data
+        for better performance --> limit the amount of data
+
+Initializing the Worker
+    1) A Temporal Client, which is used to communicate with the Temporal Cluster
+    2) The name of a Task Queue, which is maintained by the Temporal Server and polled by the Worker
+    3) The Workflow Definition class, used to register the Workflow implementation with the Worker
+
+workflow.py
+class GreetSomeone():
+    async def run(self, name:str) -> str:
+        return f"Hello {name}!"
+
+main.py
+import sys
+import asyncio
+from workflow import GreetSomeone
+async def main():
+    name = sys.argv[1]
+    greeter = GreetSomeone()
+    greeting = await greeter.run(name)
+    print(greeting)   
+if __name__ == "__main__":
+    asyncio.run(main())
+
+run the folloing command to check whether our code works fine
+python3 main.py veena
+Hello veena!
+
+Next step is to convert this class into temporal workflow definition
+There are three steps for turning a Python function into a Workflow Definition:
+    1) Import the workflow module from the SDK
+    2) Add the @workflow.defn decorator to the class that will define the Workflow Definition
+    3) Add the @workflow.run decorator to the function that defines the Workflow Function
+
+So the converted python files are as follows:
+
+workflow.py
+from temporalio import workflow
+@workflow.defn
+class GreetSomeone():
+    @workflow.run
+    async def run(self, name:str) -> str:
+        return f"Hello {name}!"
+
+main.py
+import sys
+import asyncio
+from workflow import GreetSomeone
+async def main():
+    name = sys.argv[1]
+    greeter = GreetSomeone()
+    greeting = await greeter.run(name)
+    print(greeting)   
+if __name__ == "__main__":
+    asyncio.run(main())
+
+cd /Desktop/Platformatory/Daily Codes/Temporal/temporal-project
+source ./env/bin/activate
+python3 ../temporal_codes/main.py veena
+
+Worker Initialization Code
+
+greeting.py 
+
+import asyncio
+from temporalio.client import Client
+from temporalio.worker import Worker
+from workfow import GreetSomeone
+async def main():
+    client = await Client.connect("localhost:7233", namespace="default")
+    # Run the worker
+    worker = Worker(client, task_queue="greeting-tasks", workflows=[GreetSomeone])
+    await worker.run()
+if __name__ == "__main__":
+    asyncio.run(main())
+
+Run
+python3 ../temporal_codes/greetings.py
+There will be no output
+
+Role of workers
+Workers execute your Workflow code
+

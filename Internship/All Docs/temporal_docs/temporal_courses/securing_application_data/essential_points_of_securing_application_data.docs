@@ -1,0 +1,22 @@
+Essential Points of Securig Application Data
+
+The following is a summary of the most essential things that you have learned during the course.
+
+Overview
+Temporal provides its own default Data Converter logic, which is not apparent to a user if payloads contain plain text or JSON data. By implementing Custom Data Converters and a Codec Server, you can expand this behavior to support a variety of complex input and output data.
+
+Data Converters
+Custom Data Converters in Temporal extend the default Data Converter with custom logic for Payload conversion or encoding. They can be used to alter formats or add compression and encryption.
+Custom Codecs, Failure Converters, and Composite Converters
+    Custom Codecs are not applied to all data by default. For example, Search Attributes are persisted unencoded so they can be indexed for searching. To avoid leaking sensitive data through error messages, you can also enable a Failure Converter.
+    The order in which your encoding Payload Converters are applied depends on the order specificied in a Composite Converter. You can set multiple encoding Payload Converters to run your conversions. When the Composite Converter receives a value for conversion, it passes through each Payload Converter in sequence until the converter that handles the data type performs the conversion.
+
+Codec Servers
+A Codec Server is a web server that you create and host. It is used to decode your encoded payloads, and integrates with the Temporal Web UI and temporal CLI. The server must be configured to use a Payload Codec with the required decode logic. Temporal Cloud requires an HTTPS Codec Server.
+The Codec Server is independent of the Temporal Server and decodes your encrypted payloads through endpoints. When you set the codec endpoint in the Temporal Web UI, the Web UI uses the remote endpoint to send encoded payloads to the Codec Server and receive decoded payloads from the Codec Server. Decoded payloads are then displayed in the Workflow Execution Event History on the Web UI.
+
+Encryption, Authentication, and Deployment
+Incorporating encryption keys into your Temporal Workflows adds several additional considerations around user management, encryption standards, and key rotation. This course provides some general guidance and example applications for addressing each of these considerations, though it is not meant to be prescriptive. Your own business logic and business needs should drive your security decisions.
+
+Other Considerations
+Adding Custom Data Conversion to your Temporal applications can add significant complexity to your stack, as it requires you to potentially ship a standalone web server (the Codec Server), a key management system or secrets engine, and an authentication provider (though you may have one of these already). This should reflect the full scope of application development -- Temporal is not designed to be opionated about every aspect of your business logic. You have the flexibility to build securely on top of it as needed.

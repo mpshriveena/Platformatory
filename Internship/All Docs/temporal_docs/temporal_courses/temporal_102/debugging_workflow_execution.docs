@@ -1,0 +1,29 @@
+Debugging Workflow Execution
+
+1) Debugging a Workflow that Does Not Progress
+
+Two solutions
+Just start worker
+Starting worker ... {client.id}
+Worker Count
+
+2) Interpreting Event History for Workflow Executions
+
+3) Terminating a Workflow Execution with the Web UI
+
+temporal workflow terminate \
+    --workflow-id process-invoice-82461092 \
+    --reason "Invalid input data provided when starting the Workflow"
+
+import asyncio
+from temporalio.client import Client
+async def main():
+    # Create client connected to server at the given address
+    client = await Client.connect("localhost:7233")
+    id = "process-invoice-82461092"
+    workflow_handle = client.get_workflow_handle(id)
+    await workflow_handle.terminate(
+        "Invalid input data provided when starting the Workflow"
+    )
+if __name__ == "__main__":
+    asyncio.run(main())

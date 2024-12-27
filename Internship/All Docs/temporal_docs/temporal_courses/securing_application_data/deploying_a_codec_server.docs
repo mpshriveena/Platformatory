@@ -1,0 +1,179 @@
+Deploying a Codec Server
+
+1) Ingress and Authentication
+
+import logging
+from functools import partial
+from typing import Awaitable, Callable, Iterable, List
+
+from aiohttp import hdrs, web
+from google.protobuf import json_format
+from temporalio.api.common.v1 import Payload, Payloads
+
+from codec import EncryptionCodec
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+def build_codec_server() -> web.Application:
+    async def header_options(req: web.Request) -> web.Response:
+        logger.debug(f"Received OPTIONS request at {req.path}")
+        resp = web.Response()
+        return resp
+
+    # General purpose payloads-to-payloads
+    async def apply(
+        fn: Callable[[Iterable[Payload]], Awaitable[List[Payload]]], req: web.Request
+    ) -> web.Response:
+        logger.debug(f"Received request at {req.path}")
+        logger.debug(f"Request headers: {req.headers}")
+        auth_header = req.headers.get('Authorization')
+        if auth_header != 'codec-admin':
+            return web.Response(status=401, text="Unauthorized")
+        body = await req.read()
+        logger.debug(f"Request body: {body.decode()}")
+
+        # Read payloads as JSON
+        assert req.content_type == "application/json", f"Expected content-type application/json, got {req.content_type}"
+        payloads = json_format.Parse(body, Payloads())
+
+        # Apply
+        try:
+            payloads = Payloads(payloads=await fn(payloads.payloads))
+        except Exception as e:
+            logger.error(f"Error processing payloads: {str(e)}")
+            return web.Response(status=500, text=str(e))
+
+        # Apply headers and return JSON
+        resp = await header_options(req)
+        resp.content_type = "application/json"
+        resp.text = json_format.MessageToJson(payloads)
+        logger.debug(f"Response: {resp.text}")
+        return resp
+
+    # Build app per-Namespace
+    app = web.Application()
+    codecs = {"default": EncryptionCodec()}
+    for route, codec in codecs.items():
+        app.add_routes(
+            [
+                web.post(("/" + route + "/encode"), partial(apply, codec.encode)),
+                web.post(("/" + route + "/decode"), partial(apply, codec.decode)),
+                web.options(("/" + route + "/decode"), header_options),
+            ]
+        )
+    return app
+
+if __name__ == "__main__":
+    logger.info("Starting codec server on http://127.0.0.1:8081")
+    web.run_app(build_codec_server(), host="127.0.0.1", port=8081)
+
+This command will execute successfully
+temporal workflow show \
+   -w greeting-workflow \
+   --codec-endpoint 'http://localhost:8081/default' \
+   --codec-auth 'codec-admin'
+
+But this command will throw an error.
+temporal workflow show \
+   -w greeting-workflow \
+   --codec-endpoint 'http://localhost:8081/default' \
+   --codec-auth 'auth-header'
+
+2) Configuring CORS
+
+import logging
+from functools import partial
+from typing import Awaitable, Callable, Iterable, List
+from aiohttp import hdrs, web
+from google.protobuf import json_format
+from temporalio.api.common.v1 import Payload, Payloads
+from docopt import docopt
+from codec import EncryptionCodec
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+def build_codec_server(arguments) -> web.Application:
+    async def header_options(req: web.Request) -> web.Response:
+        logger.debug(f"Received OPTIONS request at {req.path}")
+        resp = web.Response()
+        if arguments["--web"]==True:
+            if req.headers.get(hdrs.ORIGIN) == arguments["<url>"]:
+                resp.headers[hdrs.ACCESS_CONTROL_ALLOW_ORIGIN] = arguments["<url>"]
+                resp.headers[hdrs.ACCESS_CONTROL_ALLOW_METHODS] = "POST"
+                resp.headers[hdrs.ACCESS_CONTROL_ALLOW_HEADERS] = "content-type,x-namespace"
+        return resp
+
+    async def apply(
+        fn: Callable[[Iterable[Payload]], Awaitable[List[Payload]]], req: web.Request
+    ) -> web.Response:
+        logger.debug(f"Received request at {req.path}")
+        logger.debug(f"Request headers: {req.headers}")
+        
+        body = await req.read()
+        logger.debug(f"Request body: {body.decode()}")
+
+        assert req.content_type == "application/json", f"Expected content-type application/json, got {req.content_type}"
+        payloads = json_format.Parse(body, Payloads())
+
+        try:
+            payloads = Payloads(payloads=await fn(payloads.payloads))
+        except Exception as e:
+            logger.error(f"Error processing payloads: {str(e)}")
+            return web.Response(status=500, text=str(e))
+
+        resp = await header_options(req)
+        resp.content_type = "application/json"
+        resp.text = json_format.MessageToJson(payloads)
+        logger.debug(f"Response: {resp.text}")
+        return resp
+
+    app = web.Application()
+    codecs = {"default": EncryptionCodec()}
+    for route, codec in codecs.items():
+        app.add_routes(
+            [
+                web.post(("/" + route + "/encode"), partial(apply, codec.encode)),
+                web.post(("/" + route + "/decode"), partial(apply, codec.decode)),
+                web.options(("/" + route + "/decode"), header_options),
+            ]
+        )
+    return app
+
+if __name__ == "__main__":
+    arguments = docopt(__doc__)
+    logger.info("Starting codec server on http://127.0.0.1:8081")
+    web.run_app(build_codec_server(arguments), host="127.0.0.1", port=8081)
+
+To run this codec server with CORS enabled for a specific Temporal Web UI URL, use the following command:
+
+python codec_server.py --web http://localhost:8233
+
+3) Integrating with the Web UI
+
+Now, to query this codec server from the Temporal Web UI:
+    --> Open your Temporal Web UI (e.g., http://localhost:8080).
+    --> Navigate to the Namespace where you want to configure the codec server.
+    --> In the top-right corner of the Web UI, you should see a 3D glasses icon, which gives you access to the Codec Server settings
+    --> Enter the URL of your codec server: http://127.0.0.1:8081/default
+    --> Click the Apply button. The 3D glasses in the top nav should now be colorized, indicating a successful connection:.
+
+After configuring the codec server in the Temporal Web UI, when you view workflows or tasks that contain encrypted payloads, the UI will automatically send requests to your codec server to decode the payloads before displaying them.
+Remember to ensure that:
+    --> Your codec server is running and accessible from the machine where you're accessing the Temporal Web UI.
+    --> The URL you use for the --web option when starting the codec server matches the URL you're using to access the Temporal Web UI.
+    --> The Namespace in the Temporal Web UI is configured to use the correct codec server endpoint.
+
+4) Working with Decoded Payloads
+
+It is also possible to decode a payload from within Temporal SDK client code, e.g. when you are using Queries or Updates. 
+After registering your codec with your converter by following the steps in this course, this happens automatically.
+Running temporal workflow show with -o json produces JSON output instead of a formatted table:
+
+temporal workflow show    -w greeting-workflow --codec-endpoint 'http://localhost:8081/default' --output json
+
+5) Using a Codec Server with Temporal Cloud
+
+Similar to local temporal cluster

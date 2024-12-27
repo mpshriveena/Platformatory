@@ -1,0 +1,153 @@
+Testing Your Versioning Implementation
+
+1) Testing with Temporal Review
+
+WorkflowEnvironment
+The WorkflowEnvironment class provides a runtime environment used to test a Workflow. When running your Workflow code within the test environment, some aspects of its execution will work differently to better support testing. For example, Timers will "skip time" by firing without their normal delay, enabling you to quickly test long-running Workflows.
+
+ActivityEnvironment
+The ActivityEnvironment type is similar to WorkflowEnvironment, but used for testing Activities.
+
+Activity Implementation
+For example, if we want to implement the activity testing, consider the following example
+
+activity.py
+from temporalio import activity
+class SquareActivities:
+    @activity.defn
+    async def square(self, number: int) -> int:
+        return number * number
+
+test_activity.py
+
+import pytest
+from temporalio.testing import ActivityEnvironment
+from activity import SquareActivities
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "input, output",
+    [(5, 25), (-5, 25), (2, 4), (-3, 9), (-4, 16)],
+)
+async def test_square(input, output):
+    activity_environment = ActivityEnvironment()
+    activities = SquareActivities()
+    assert output == await activity_environment.run(activities.square, input)
+    print(f"Output: {output}")
+
+Initial installations
+cd square_testing_activity/
+pip install anyio pytest-asyncio pytest-tornasync pytest-trio pytest-twisted twisted
+
+Run
+python3 -m pytest
+
+2) Searching for Workflow Versions
+Searching for Workflow Versions
+
+It is essential to find out if all running Workflow Executions for a given Version of the Workflow Definition have completed before you can remove or consolidate your Workflow Version code.
+Search Attributes
+
+When a Workflow is versioned using the Patching API, the version number is recorded as a marker in the Event History. A search attribute named TemporalChangeVersion is added to the Workflow metadata to enable you to search for Workflows with those changes.
+
+Using the CLI, SDK, or Web UI, you can query for this attribute
+You can also query for Workflows that match a specific version of your Workflow code:
+
+3) Retrieving Event History
+There are theree ways to retrive history. They are
+--> Through UI
+--> Through CLI
+--> Through SDK
+
+--> Through UI
+When you scroll down to the list of Events in your Event history, you can see a Download button. This button will allow you to download the entire Workflow Execution Event History in JSON format.
+
+--> Through CLI
+temporal workflow show \
+ --workflow-id Your-Custom-Workflow-Id \
+ --fields long \
+ --output json > workflow_output.json
+
+--> Through SDK
+from temporalio.client import Client, WorkflowHistory
+async def get_workflow_histories(my_client: Client):
+    workflow_history = await my_client.list_workflows("WorkflowType = 'ExampleWorkflow'").map_histories()
+
+4) Determinism in Versioned Workflows
+Versioning allows existing Workflows to continue running on the old Workflow code, while new Workflows can use the new code. This prevents non-determinism errors from occurring.
+
+Sanity Checking
+
+The Temporal SDK performs a sanity check to help prevent obvious incompatible changes. The sanity check verifies whether a Command made in Replay matches the event recorded in history, in the same order. The Command is generated when the Workflow interacts with the Temporal Cluster such as requesting the execution of an Activity, canceling a Workflow Execution, starting a Timer, and so on.
+Adding, removing, or reordering any method that involves interaction with the Temporal cluster triggers the sanity check and results in a non-deterministic error.
+The sanity check is not thorough. For example, it does not check on the Activity's input arguments or the Timer duration. If the check is enforced on every property, it becomes too restrictive and harder to maintain the Workflow code. For example, if you move your Activity code from one package to another package, that move changes the ActivityType, which technically becomes a different Activity. But we don't want to fail on that change, so we check only the function name part of the ActivityType.
+
+5) Testing Backwards Compatibility of a Change
+We recommend that you have automated tests that perform a replay using at least one Event History corresponding to each supported version of your code.
+
+There are five steps to creating an automated test, each of which corresponds to the headings below.
+1. Create the Workflow Replayer and Register a Workflow Definition
+
+The Workflow Replayer is used to replay an existing Workflow Execution from its Event History.
+
+from temporalio.worker import Replayer
+
+async def run_replayer(history_str: str):
+  replayer = Replayer(workflows=[ExampleWorkflow])
+
+Unlike when configuring a Worker, you do not need to register the Activities here, only the Workflow.
+2. Retrieve an Event History from a Past Workflow Execution
+
+The replayer can use the Event History in JSON format as input.
+
+The easiest way to retrieve the Event History for a previous Workflow Execution is to find its detail page in the Web UI and click the Download button to the upper-right of the Event History table.
+
+Alternatively, you can use the command-line tool to retrieve the history, directing its output to a file.
+
+temporal workflow show \
+ --workflow-id loan-processing-workflow-customer-a101 \
+ --fields long \
+ --output json > example-history.json
+
+3. Replay the Event History
+
+The following example assumes that you downloaded the Event History in JSON format to a file named example-history.json that is located in the same directory as the test.
+
+from temporalio.client import WorkflowHistory
+
+with open("example-history.json") as f:
+    history_str = f.read()
+
+await replayer.replay_workflow(WorkflowHistory.from_json(history_str))
+
+If Event History is non-deterministic, an error is thrown.
+Bringing It All Together
+
+from temporalio.client import WorkflowHistory
+from temporalio.worker import Replayer
+
+with open("example-history.json") as f:
+    history_str = f.read()
+
+async def run_replayer(history_str: str):
+  replayer = Replayer(workflows=[ExampleWorkflow])
+  await replayer.replay_workflow(WorkflowHistory.from_json(history_str))
+
+Replaying without retrieving JSON
+
+The Python SDK also allows you to use list_workflows().map_histories() to retrieve and test Event History at runtime, without needing to load it from JSON:
+
+from temporalio.client import Client, WorkflowHistory
+from temporalio.worker import Replayer
+
+async def check_past_histories(my_client: Client):
+  replayer = Replayer(workflows=[ExampleWorkflow])
+  await replayer.replay_workflows(
+    await my_client.list_workflows("WorkflowType = 'ExampleWorkflow'").map_histories(),
+  )
+
+
+
+
+
+
+

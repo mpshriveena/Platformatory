@@ -1,0 +1,220 @@
+Temporal 101 with Python
+
+Chapter 7: Deploying an activity
+
+What Are Activities?
+
+There is no requirement for an Activity Definition to be deterministic.
+Activity is a function decorated with the @activity.defn decorator
+
+Activities can be implemented either in functions like this
+from temporalio import activity
+@activity.defn
+async def greet_in_french(name: str) -> str:
+    return f"Bonjour {name}!"
+
+Or class like this.
+class TranslateActivities:
+    def __init__(self, session: aiohttp.ClientSession):
+        self.session = session
+    @activity.defn
+    async def greet_in_spanish(self, name: str, stem: str) -> str:
+        base = f"http://localhost:9999/{stem}"
+        url = f"{base}?name={urllib.parse.quote(name)}"
+        async with self.session.get(url) as response:
+            translation = await response.text()
+        return translation
+Choose which suits your code
+
+Asynchronous vs. Synchronous Activity Implementations
+The Temporal Python SDK supports multiple ways of implementing an Activity:
+    Asynchronously using asyncio
+    Synchronously multithreaded using concurrent.futures.ThreadPoolExecutor
+    Synchronously multiprocess using concurrent.futures.ProcessPoolExecutor and multiprocessing.managers.SyncManager
+
+Python Asynchronous Event Loop and Blocking Calls
+When any task is running in the event loop, the loop is blocked and no other tasks can be running at the same time within that event loop
+Blocking the async event loop in Python would turn your asynchronous program into a synchronous program that executes serially, defeating the entire purpose of using asyncio
+Python developers must be extra careful to not make blocking calls from within an asynchronous Activity, or use an async safe library to perform these actions
+async-safe HTTP library such as aiohttp or httpx
+
+pip install flask
+
+from flask import Flask, request
+import urllib.parse
+app = Flask(__name__)
+@app.route('/get-spanish-greeting', methods=['GET'])
+def get_spanish_greeting():
+    name = request.args.get('name', '')
+    return f"Hola, {name}!"
+if __name__ == '__main__':
+    app.run(host='localhost', port=9999)
+
+translate.py:-
+
+import aiohttp
+import urllib.parse
+from temporalio import activity
+class TranslateActivities:
+    def __init__(self, session: aiohttp.ClientSession):
+        self.session = session
+    @activity.defn
+    async def greet_in_spanish(self, name: str) -> str:
+        greeting = await self.call_service("get-spanish-greeting", name)
+        return greeting
+    # Utility method for making calls to the microservices
+    async def call_service(self, stem: str, name: str) -> str:
+        base = f"http://localhost:9999/{stem}"
+        url = f"{base}?name={urllib.parse.quote(name)}"
+        async with self.session.get(url) as response:
+            translation = await response.text()
+            if response.status >= 400:
+                raise ApplicationError(
+                    f"HTTP Error {response.status}: {translation}",
+                    # We want to have Temporal automatically retry 5xx but not 4xx
+                    non_retryable=response.status < 500,
+                )
+            return translation
+
+
+Registering Activities
+
+from temporalio.client import Client
+from temporalio.worker import Worker
+from translate import greet_in_spanish
+from greeting import GreetSomeone
+# Code not pertaining to the registration has been omitted
+...
+    worker = Worker(
+        client,
+        task_queue="greeting-tasks",
+        workflows=[GreetSomeone],
+        activities=[greet_in_spanish],
+    )
+...
+
+Asynchronous Activity Registration and Worker Example
+
+pip install aiohttp
+
+import asyncio
+import aiohttp
+from temporalio.client import Client
+from temporalio.worker import Worker
+from translate import TranslateActivities
+from greeting import GreetSomeone
+async def main():
+    client = await Client.connect("localhost:7233", namespace="default")  
+    # Run the worker
+    async with aiohttp.ClientSession() as session:
+        activities = TranslateActivities(session)
+        worker = Worker(
+            client,
+            task_queue="greeting-tasks",
+            workflows=[GreetSomeone],
+            activities=[activities.greet_in_spanish],
+        )
+        await worker.run()
+if __name__ == "__main__":
+    asyncio.run(main())
+
+Modifying the Worker to Execute Synchronous Activities
+When executing Synchronous Activities, you must pass an activity_executor to the Worker
+When using the ThreadPoolExecutor, first import concurrent.futures. Next, create a ThreadPoolExecutor object and specify the maximum number of workers.
+Next, create a ThreadPoolExecutor object and specify the maximum number of workers. This number is dependent on the number of max_concurrent_activities set by the Worker. Currently, the Worker sets the number of max_concurrent_activities to 100 by default
+
+Executing Asynchronous and Synchronous Activities from the Same Worker
+import urllib.parse
+import requests
+import aiohttp
+from temporalio import activity
+class TranslateActivities:
+    def __init__(self, session: aiohttp.ClientSession):
+        self.session = session
+    @activity.defn
+    async def greet_in_spanish(self, name: str) -> str:
+        # Calling the asynchronous service to get a Spanish greeting
+        greeting = await self.call_service_async("get-spanish-greeting", name)
+        return greeting
+    @activity.defn
+    def thank_you_in_spanish(self, name: str) -> str:
+        # Calling the synchronous service to get a Spanish "thank you"
+        thank_you = self.call_service_sync("get-spanish-thank-you", name)
+        return thank_you
+    # Utility method for making asynchronous calls to the microservices
+    async def call_service_async(self, stem: str, name: str) -> str:
+        base_url = f"http://localhost:9999/{stem}"
+        url = f"{base_url}?name={urllib.parse.quote(name)}"       
+        # Using aiohttp to perform the asynchronous GET request
+        async with self.session.get(url) as response:
+            response_text = await response.text()
+            if response.status >= 400:
+                # Raise an error if the response indicates a failure (4xx or 5xx)
+                raise Exception(f"HTTP Error {response.status}: {response_text}")
+            return response_text
+    # Utility method for making synchronous calls to the microservices
+    def call_service_sync(self, stem: str, name: str) -> str:
+        base_url = f"http://localhost:9999/{stem}"
+        url = f"{base_url}?name={urllib.parse.quote(name)}"       
+        # Using requests to perform the synchronous GET request
+        response = requests.get(url)
+        if response.status_code >= 400:
+            # Raise an error if the response indicates a failure (4xx or 5xx)
+            raise Exception(f"HTTP Error {response.status_code}: {response.text}")
+        return response.text
+
+Executing Activities
+Importing Modules into Workflow Files
+# Import activity, passing it through the sandbox without reloading the module
+with workflow.unsafe.imports_passed_through():
+    from translate import TranslateActivities
+
+Specifying Activity Options
+async def run(self, name: str) -> str:
+    greeting = await workflow.execute_activity_method(
+        TranslateActivities.greet_in_spanish,
+        name,
+        start_to_close_timeout=timedelta(seconds=5),
+    )
+    return greeting
+start_to_close_timeout option was set to a value of five seconds. Its value should be longer than the maximum amount of time you think the execution of the Activity should take.
+
+Executing the Activity
+greeting = await workflow.execute_activity_method(
+    TranslateActivities.greet_in_spanish,
+    name,
+    start_to_close_timeout=timedelta(seconds=5),
+)
+workflow.execute_activity_method should be used when the Activity is implemented as a class. When the Activity is implemented as a function, as shown in the greet_in_french example in the previous chapter, you would use the execute_activity function.
+
+Retrieving the Result
+greeting_handle = workflow.start_activity_method(
+    TranslateActivities.greet_in_spanish,
+    name,
+    start_to_close_timeout=timedelta(seconds=5)
+)
+greeting = await greeting_handle
+The Workflow does not execute the activity. That is, it does not invoke the Activity Function. Instead, it makes a request to the Temporal Cluster, asking it to schedule execution of the Activity
+
+Putting it All Together
+from datetime import timedelta
+from temporalio import workflow
+# Import activity, passing it through the sandbox without reloading the module
+with workflow.unsafe.imports_passed_through():
+    from translate import TranslateActivities
+@workflow.defn
+class GreetSomeone:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        greeting = await workflow.execute_activity_method(
+            TranslateActivities.greet_in_spanish,
+            name,
+            start_to_close_timeout=timedelta(seconds=5),
+        )
+        farewell = await workflow.execute_activity_method(
+            TranslateActivities.farewell_in_spanish,
+            name,
+            start_to_close_timeout=timedelta(seconds=5),
+        )
+        return f"{greeting}\n{farewell}"
+

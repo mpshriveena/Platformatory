@@ -1,0 +1,86 @@
+Temporal 101 with Python
+
+Chapter 4: Executing a Workflow
+
+temporal workflow start \
+    --type GreetSomeone \
+    --task-queue greeting-tasks \
+    --workflow-id my-first-workflow \
+    --input '"Mason"'
+
+The following will be the output
+temporal workflow start \
+>     --type GreetSomeone \
+>     --task-queue greeting-tasks \
+>     --workflow-id my-first-workflow \
+>     --input '"Mason"'
+Running execution:
+  WorkflowId  my-first-workflow
+  RunId       29a071f0-dbb2-4397-96f6-b10fe1aa120c
+  Type        GreetSomeone
+  Namespace   default
+  TaskQueue   greeting-tasks
+
+But the result is not shown because workflows might run for months or years.
+To show the output, execute the following command
+temporal workflow show --workflow-id my-first-workflow
+THe following will be the output
+Progress:
+  ID           Time                     Type           
+    1  2024-12-07T08:32:24Z  WorkflowExecutionStarted  
+    2  2024-12-07T08:32:24Z  WorkflowTaskScheduled     
+    3  2024-12-07T08:32:24Z  WorkflowTaskStarted       
+    4  2024-12-07T08:32:24Z  WorkflowTaskCompleted     
+    5  2024-12-07T08:32:24Z  WorkflowExecutionCompleted
+
+Results:
+  Status          COMPLETED
+  Result          "Hello Mason!"
+  ResultEncoding  json/plain
+
+example_workflow.py
+import asyncio
+import sys
+from workflow import GreetSomeone
+from temporalio.client import Client
+async def main():
+    # Create client connected to server at the given address
+    client = await Client.connect("localhost:7233")
+    # Execute a workflow
+    handle = await client.start_workflow(
+        GreetSomeone.run,
+        sys.argv[1],
+        id="greeting-workflow",
+        task_queue="greeting-tasks",
+    )
+    print(f"Started workflow. Workflow ID: {handle.id}, RunID {handle.result_run_id}")
+    result = await handle.result()
+    print(f"Result: {result}")
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+Explanation of Example Code: Execution
+
+This application follows three main steps to start the Workflow:
+
+    Import the Client class from the Temporal SDK
+    Create and configure a client
+    Use the API to request execution
+
+Regarding the second point, the code used to create and configure the client here is identical to the code used during Worker initialization. You can structure your application such that the same client is shared between those two parts of the code. However, in this course I've kept the Worker initialization and starter code separate so that it's easier to distinguish the role of each.
+
+The Workflow Execution options specify the Workflow ID and Task Queue name, the same two values supplied as arguments to the temporal command.
+
+The application requests execution of the Workflow by calling the client's start_workflow method, passing in the Workflow method, the input for the Workflow, the Workflow ID, and the name of the task queue. In this case, the input comes is supplied through the command line when running this application. By the way, when starting a Workflow from code, we don't have to specify the input in JSON format like you did on the command line. You can just use any of the allowed types, such as integers or strings or data classes, and the SDK will convert it into JSON for you automatically.
+Explanation of Example Code: Retrieving the Result
+
+Recall that Workflows can run for very long periods of time. The call to start_workflow does not wait for workflow completion, so the line that logs the "Started Workflow" message and displays the Workflow ID and Run ID will run a fraction of a second later, even if the Workflow takes years to complete.
+
+There is no requirement to wait for or retrieve the result, but the code sample above demonstrates how to do so. Since the result will only be available once Workflow Execution is complete, start_workflow returns a WorkflowHandle that provides access to the result (in this case, a customized greeting) once it's available.
+
+The handle.result() call used to retrieve the result will block until Workflow Execution is finished. If the Workflow Execution completes successfully, the result variable will be assigned its output. If the Workflow Execution completes unsuccessfully, an exception is raised.
+
+If you wanted to block the program at Workflow invocation time you would condense the code and use the execute_workflow method instead. This would make your Workflow synchronous.
+

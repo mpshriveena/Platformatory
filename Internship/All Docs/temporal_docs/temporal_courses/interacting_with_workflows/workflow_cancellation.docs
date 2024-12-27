@@ -1,0 +1,121 @@
+Workflow Cancellations
+
+1) What is an Activity Heartbeat?
+An Activity Heartbeat is a periodic ping sent by the Activity to the Temporal Service. This signal serves multiple purposes:
+    Progress Indication: It informs the Temporal Service that the Activity is progressing, has not stalled, and how far along it has processed. This can be helpful if the Activity is retried as it can preserve some state from the previous run.
+    Worker Health Check: It indicates that the Worker executing the Activity is operational and has not encountered a failure.
+    Cancellation Detection: It enables the Worker to check if the Activity Execution has been cancelled, allowing for timely and graceful termination of the Activity if necessary.
+
+The frequency of sending Heartbeats depends on the duration and nature of the Activity:
+    Short Activities: For brief Activities, frequent Heartbeats might not be necessary. In Temporal, Activity Heartbeats play a crucial role in managing Activities that may run for a long time.
+    Long-Running Activities: For Activities that take a considerable amount of time, Temporal recommends using a relatively short Heartbeat Timeout and a frequent Heartbeat. That way if a Worker fails it can be handled in a timely manner.
+
+A Heartbeat Timeout is the maximum time between Activity Heartbeats.
+
+Throttling refers to the process of limiting the rate at which Actions are performed to prevent a Namespace from exceeding its Actions per second (APS) limit.
+Throttling is implemented as follows:
+    After sending a Heartbeat, the Worker sets a Timer for the throttle interval.
+    The Worker stops sending Heartbeats, but continues receiving Heartbeats from the Activity and remembers the most recent one.
+    When the Timer fires, the Worker:
+        Sends the most recent Heartbeat.
+        Sets the timer again.
+
+No matter the throttling, the most recent Heartbeat is always sent to the server upon Activity failure, so Heartbeat data will not be lost upon failure.
+
+2) Canceling a Workflow Execution
+
+Canceling Workflow Executions in Temporal allows Workflows to terminate gracefully, providing opportunities for necessary cleanup and ensuring that Workflows do not end abruptly. Cancellation is a preferable option to terminating Workflow Executions in most cases.
+
+Canceling a Workflow with the Web UI
+
+Canceling a Workflow from the CLI
+temporal workflow cancel --workflow-id=meaningful-business-id
+temporal workflow cancel \
+  --query 'ExecutionStatus = "Running" AND WorkflowType="YourWorkflow"' \
+  --reason "Testing"
+
+Canceling a Workflow Execution with the SDK
+await client.get_workflow_handle("your_workflow_id").cancel()
+
+3) Canceling vs. Terminating Workflow Executions
+
+Canceling Workflow Executions
+Canceling a Workflow Execution provides a graceful way to stop the Workflow Execution. This is like running the kill -15 command for a process in UNIX. Canceling a Workflow is a gentle request for the Workflow Execution to stop, but allows the process to perform cleanup before exiting.
+Here is what happens during Workflow Cancellation:
+    The system records a WorkflowExecutionCancelRequested Event in the Workflow History.
+    A Workflow Task gets scheduled to process the cancellation.
+    The Workflow has the opportunity to execute cleanup logic or other necessary final steps. This might involve releasing resources, notifying other services, or saving the current state.
+    The system does not forcibly stop the Workflow. Instead, it allows the Workflow to respond to the cancellation request at its own pace.
+
+Terminating Workflow Executions
+Terminating a Workflow Execution is more abrupt and is similar to killing a process. It forcefully stops the Workflow Execution without any cleanup or grace period.
+Here is what happens during Workflow Termination:
+    The system records a WorkflowExecutionTerminated Event in the Workflow History.
+    Termination is immediate and unconditional. The Workflow Execution stops right away, without any opportunity for handling or cleanup in the Workflow code.
+    When you terminate a Workflow Execution, any of its Activities that are currently running will immediately get cancelled. However, the Workers executing these Activities won't be immediately aware of the Cancellation. They will only be aware once the Activity completes or send a Heartbeat.
+    Unlike cancellation, no additional Workflow Task is scheduled following termination.
+
+Termination of a Workflow by the Temporal Service
+In rare occasions, the Temporal Service itself may initiate termination of a Workflow Execution. This happens when the Workflow Execution exceeds some operational limits that makes it impossible to make any further progression. For example, a Workflow Execution will automatically get terminated in the following situations:
+    The size of the entire Event History exceeds 50 MB.
+    The length of the Event History surpasses 50K Events.
+    The Workflow Execution Timeout is exceeded.
+
+4) Handling Workflow Cancelation
+
+@workflow.defn
+class CancellationWorkflow:
+    @workflow.run
+    async def run(self) -> None:
+        try:
+            await workflow.execute_activity(
+                custom_activity,
+                start_to_close_timeout=timedelta(seconds=1000)
+            )
+        finally:
+            await workflow.execute_activity(
+                cleanup_activity, start_to_close_timeout=timedelta(seconds=5)
+            )
+
+The finally block will trigger if the cancel() method is called on the Workflow handle, or if it completes normally.
+
+handle = await client.start_workflow(
+        CancellationWorkflow.run,
+        id="hello-cancellation-workflow-id",
+        task_queue="hello-cancellation-task-queue",
+)
+
+await asyncio.sleep(2)
+await handle.cancel()
+
+5) Canceling an Activity from a Workflow
+
+Activities in Temporal Workflows can be stopped or canceled from an external source, which is essential for adapting to changing conditions or requirements
+Activity Cancellation will:
+    --> Let the Activity know it doesn't need to keep doing work
+    --> Give the Activity time to clean up any resources it has created
+
+@activity.defn
+async def cancellable_activity() -> NoReturn:
+    try:
+        while True:
+            print("Heartbeating cancel activity")
+            await asyncio.sleep(1)
+            activity.heartbeat("some details")
+    except asyncio.CancelledError:
+        print("Activity cancelled")
+        return
+
+@workflow.defn
+ class GreetingWorkflow:
+     @workflow.run
+     async def run(self, input: ComposeArgsInput) -> None:
+        activity_handle = workflow.start_activity(
+            cancellable_activity,
+            start_to_close_timeout=timedelta(minutes=5),
+            heartbeat_timeout=timedelta(seconds=30),
+
+        )
+    
+        await asyncio.sleep(3)
+        activity_handle.cancel()

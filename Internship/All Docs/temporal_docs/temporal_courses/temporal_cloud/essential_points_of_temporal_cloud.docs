@@ -1,0 +1,34 @@
+Essential Points of Temporal Cloud Course
+
+* Temporal Cloud provides "Namespace-as-a-Service"
+    -->It offers an alternative to a self-hosted Temporal Cluster
+    -->It relieves your organization from operational burden
+    -->This service is managed, monitored, and supported by a team of experts at Temporal
+    -->Temporal Cloud is secure, scalable, and offers exceptional performance
+
+* The Temporal Cloud Web UI provides a convenient interface to view and control Workflow Executions
+    -->It also provides a convenient interface to manage users, set up Namespaces, integrate with third-party tools, and view usage information
+    -->Icons displayed in the left navigation pane provide quick access to these features
+
+* Namespaces provide isolation for Workflow Executions within the Temporal Cloud account
+    -->Temporal Cloud accounts allow authorized users to create up to 10 Namespaces by default
+    -->You can create a support ticket if you need to create more than 10 Namespaces
+
+* Users are added to a Temporal Cloud account through email invitations
+    -->They must click the Accept Invitation link in the e-mail to gain access
+    -->Each user is granted an account-level role, which defines their default access to all Namespaces within that account
+    -->Each user may also be granted a greater level of access to each individual Namespace
+
+* Custom Search Attributes expand search capabilities in Temporal Cloud
+    -->They allow you to use domain-specific criteria to locate Workflow Executions
+    -->Each custom Search Attribute has a name and type
+    -->Custom Search Attribute types are similar to column types in a database
+
+* Temporal Cloud can integrate with third-party tools
+    -->These are configured through the Integrations tab of the Settings page
+    -->You can generate an endpoint to integrate Temporal Cloud metrics with an observability tool
+    -->You can stream Audit Log events to Amazon Kinesis
+
+* Temporal Cloud's Usage page shows information about current and past usage
+    -->It includes the ability to see total usage for the entire account as well as any Namespace with the account
+    -->This data can help you to estimate costs and see trends over time

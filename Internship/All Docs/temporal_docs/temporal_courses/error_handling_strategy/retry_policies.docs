@@ -1,0 +1,88 @@
+Retry Policies
+
+1) What is a Retry Policy?
+A Retry Policy is a collection of attributes that instructs the Temporal Service how to retry a failure of a Workflow Execution or an Activity Task Execution. 
+A Retry Policy is declarative.
+Workflow Execution itself is not associated with a Retry Policy by default
+Retry Policies do not apply to Workflow Task Executions, which always retry indefinitely.
+
+2) Default Retry Policies
+Activities in Temporal are associated with a Retry Policy by default, while Workflows are not. 
+
+Retry Policy for Activities
+    --> Initial Interval: The amount of time that must elapse after failure before the first retry occurs
+        Defaults to 1 second
+
+    --> Backoff Coefficient: This is the multiplier used to calculate the delay between subsequent retries after each unsuccessful attempt
+        Defaults to 2.0
+        Example: That means there will be a retry after 1 second, another after 2 seconds, then 4 seconds, 8 seconds, 16 seconds, and so on.
+
+    --> Maximum Interval: Specifies the maximum duration between retries
+        Defaults to 100 times the initial interval
+        This is to prevent excessive time between two subsequent retries.
+        Example: 1, 2, 4, 8, 16, 32, 64, 100, 100, 100, 100
+
+    --> Maximum Attempts: Specifies the maximum number of execution attempts allowed
+        Defaults to zero, which is evaluated as unlimited
+        Non-Retryable Errors: Specifies error types that should not be retried
+        Defaults to none
+
+3) Defining a Custom Retry Policy
+Custom Retry Policy for Activity Execution
+The three conceptual types of failures: Transient, Intermittent, and Permanent.
+    --> Transient failures can be resolved by retrying the operation immediately after the failure.
+    --> Intermittent failures can be addressed by retrying the operation, but these retries should be spread out over a longer period of time to allow the underlying cause to be resolved. For example, if you encounter a rate limiting issue, you’ll want to give enough time for the rate limiter to reset.
+    --> Permanent failures cannot be resolved solely through retries and will require manual intervention.
+
+The three steps to use a custom Retry Policy:
+    Import Required Modules
+    Create a Retry Policy
+    Associate the Retry Policy with your Activity Execution
+
+from temporalio.common import RetryPolicy
+
+      retry_policy = RetryPolicy(
+         initial_interval=timedelta(seconds=15),
+         backoff_coefficient=2.0,
+         maximum_interval=timedelta(seconds=160),
+         maximum_attempts=100,
+      )
+
+      result = await workflow.execute_activity_method(
+            MyWorkflow.run,
+            input,
+            start_to_close_timeout=timedelta(seconds=5),
+            retry_policy=retry_policy,
+      )
+
+Best Practices for Retry Policies
+Don't Unnecessarily Set Maximum Attempts to 1
+Recognize that Each Activity Execution Can Have Its Own Retry Policy
+Avoid Retry Policies for Workflow Executions
+
+4) Customizing a Retry Policy for a Specific Activity
+
+    retry_policy_one = RetryPolicy(
+         initial_interval=timedelta(seconds=5),
+         backoff_coefficient=1.25,
+      )
+    retry_policy_one = RetryPolicy(
+         initial_interval=timedelta(seconds=10),
+         backoff_coefficient=3,
+    ) 
+    result_one = await workflow.execute_activity_method(
+        my_activity,
+        input,
+        start_to_close_timeout=timedelta(seconds=5),
+        retry_policy=retry_policy_one,
+    )
+    result_two = await workflow.execute_activity_method(
+        my_activity,
+        input,
+        start_to_close_timeout=timedelta(seconds=5),
+        retry_policy=retry_policy_two,
+    )
+    return f"{result_one} {result_two}"
+
+5) Defining Error Types as Non-Retryable
+retry_policy_one = RetryPolicy(non_retryable_error_types=["CreditCardProcessingError"])

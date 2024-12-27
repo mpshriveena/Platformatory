@@ -1,0 +1,192 @@
+Compression and Encryption
+
+1) When and How to Use Compression
+
+Compression is not a substitute for encryption.
+By default, Temporal limits payload sizes to 4MB
+While compression can generally be performed before encryption for maximum efficiency
+You should never compress after encrypting
+
+2) Data Encryption Methods
+
+Symmetric Encryption --> allows you to distribute your encryption and decryption keys separately
+AES-based algorithms --> hardware accelerated in Python ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY
+Handle your encryption keys in the same manner as you handle passwords, config details, and other sensitive data
+Make sure you have a key rotation strategy in place in the event that your keys are compromised or need to be replaced for another reason
+
+3) Key Management and Rotation
+
+NIST guidance recommends periodic rotation of encryption keys
+For AES-GCM keys, rotation should occur before approximately 2^32 encryptions have been performed by a key version, following the guidelines of NIST publication 800-38D
+For example, if one determines that the estimated rate is 40 million operations per day, then rotating a key every three months is sufficient
+Like the Data Converters, keys should be mapped to Namespaces in Temporal
+
+Using Vault for Key Management
+This repository provides a robust and complete example of using Temporal with HashiCorp's Vault secrets engine. Note that as of February 2024, Vault has recently been forked into an open source project called OpenBao due to changes to its upstream licensing model. OpenBao APIs were compatible with Vault's upon its initial release, but may not be indefinitely.
+
+4) Sharing Converter Logic
+
+Using Codec server. This can be used only in ui and CLI.
+
+codec_endpoint.py
+
+import logging
+from functools import partial
+from typing import Awaitable, Callable, Iterable, List
+
+from aiohttp import hdrs, web
+from google.protobuf import json_format
+from temporalio.api.common.v1 import Payload, Payloads
+
+from codec import EncryptionCodec
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+def build_codec_server() -> web.Application:
+    async def header_options(req: web.Request) -> web.Response:
+        logger.debug(f"Received OPTIONS request at {req.path}")
+        resp = web.Response()
+        return resp
+
+    # General purpose payloads-to-payloads
+    async def apply(
+        fn: Callable[[Iterable[Payload]], Awaitable[List[Payload]]], req: web.Request
+    ) -> web.Response:
+        logger.debug(f"Received request at {req.path}")
+        logger.debug(f"Request headers: {req.headers}")
+        
+        body = await req.read()
+        logger.debug(f"Request body: {body.decode()}")
+
+        # Read payloads as JSON
+        assert req.content_type == "application/json", f"Expected content-type application/json, got {req.content_type}"
+        payloads = json_format.Parse(body, Payloads())
+
+        # Apply
+        try:
+            payloads = Payloads(payloads=await fn(payloads.payloads))
+        except Exception as e:
+            logger.error(f"Error processing payloads: {str(e)}")
+            return web.Response(status=500, text=str(e))
+
+        # Apply headers and return JSON
+        resp = await header_options(req)
+        resp.content_type = "application/json"
+        resp.text = json_format.MessageToJson(payloads)
+        logger.debug(f"Response: {resp.text}")
+        return resp
+
+    # Build app per-Namespace
+    app = web.Application()
+    codecs = {"default": EncryptionCodec()}
+    for route, codec in codecs.items():
+        app.add_routes(
+            [
+                web.post(("/" + route + "/encode"), partial(apply, codec.encode)),
+                web.post(("/" + route + "/decode"), partial(apply, codec.decode)),
+                web.options(("/" + route + "/decode"), header_options),
+            ]
+        )
+    return app
+
+if __name__ == "__main__":
+    logger.info("Starting codec server on http://127.0.0.1:8081")
+    web.run_app(build_codec_server(), host="127.0.0.1", port=8081)
+
+5) Remote Data Decoding
+
+When using without codec server, it should show the encrypted text and with codec server, it should show the actual text.
+
+temporal workflow show --workflow-id greeting-workflow
+Progress:
+  ID           Time                     Type           
+    1  2024-12-24T05:23:01Z  WorkflowExecutionStarted  
+    2  2024-12-24T05:23:01Z  WorkflowTaskScheduled     
+    3  2024-12-24T05:23:01Z  WorkflowTaskStarted       
+    4  2024-12-24T05:23:01Z  WorkflowTaskCompleted     
+    5  2024-12-24T05:23:01Z  WorkflowExecutionCompleted
+
+Results:
+  Status          COMPLETED
+  Result          {"metadata":{"encoding":"YmluYXJ5L3NuYXBweQ=="},"data":"/wYAAHNOYVBwWQEsAAA7+38cChYKCGVuY29kaW5nEgpqc29uL3BsYWluEg4iSGVsbG8gdmVlbmEhIg=="}
+  ResultEncoding  binary/snappy
+
+temporal workflow show --workflow-id greeting-workflow --codec-endpoint http://127.0.0.1:8081/default
+Progress:
+  ID           Time                     Type           
+    1  2024-12-24T05:23:01Z  WorkflowExecutionStarted  
+    2  2024-12-24T05:23:01Z  WorkflowTaskScheduled     
+    3  2024-12-24T05:23:01Z  WorkflowTaskStarted       
+    4  2024-12-24T05:23:01Z  WorkflowTaskCompleted     
+    5  2024-12-24T05:23:01Z  WorkflowExecutionCompleted
+
+Results:
+  Status          COMPLETED
+  Result          "Hello veena!"
+  ResultEncoding  json/plain
+
+6) Endpoints and Namespaces
+
+A single Codec Server can handle decode requests for multiple Namespaces
+
+codecs = {"default":EncryptionCodec()}
+for route,codec in codecs.items():
+    app.add_routes(
+        [
+            web.post(("/" + route + "/encode"), partial(apply, codec.encode)),
+            web.post(("/" + route + "/decode"), partial(apply, codec.decode)),
+            web.options(("/" + route + "/decode"), header_options),
+        ]
+    )
+
+POST requests from the Temporal Web UI or CLI are made to an endpoint like http://codec.server/your-namespace/decode. Each endpoint receives and responds with a JSON body that has a payloads property with an array of Payloads. The endpoints run the Payloads through a Payload Codec before returning them.
+On Temporal Cloud, you must have Namespace Admin privileges to add a Codec Server endpoint on the Namespace. Setting a Codec Server endpoint on a Cloud Namespace enables it for all users on the Namespace. Setting a Codec Server endpoint on a self-hosted cluster enables it for the entire cluster.
+
+7) Working with Large Payloads
+
+By default, Temporal limits payload size to 4MB. As discussed, this could be a reason to add a compression step, but you could also implement a codec that persists your payloads to an S3 bucket outside of workflow histories.
+
+S3 Example Architecture
+Architecturally, large payloads are passed through the CodecDataConverter which in turn uses the large payload codec to encode and decode the payloads. If the payload size is larger than the configured maximum payload size (default 128KB), the codec will use its own API to PUT or GET the payload from the Large Payload Service.
+
+Example Conversion
+Given a large input payload where data is larger than 128KB:
+
+{
+  "metadata": {
+    "encoding": "text/plain"
+  },
+  "data": "..."
+}
+
+The large payload codec will encode this payload as follows:
+
+{
+  "metadata": {
+    "encoding": "json/plain",
+    "temporal.io/remote-codec": "v2"
+  },
+  "data": {
+    "metadata": {"encoding": "text/plain"},
+    "size": 1234567,
+    "digest": "sha256:deadbeef",
+    "key": "/blobs/default/sha256:deadbeef"
+  }
+}
+
+--> metadata: Original payload's metadata + temporal.io/remote-codec metadata header to indicate the use of the remote codec
+--> size: Size in bytes of data field in original payload
+--> digest: Digest of data in original payload (for integrity checks)
+--> key: Key used by the codec retrieve the stored payload
+
+
+
+
+
+
+
+
+
+

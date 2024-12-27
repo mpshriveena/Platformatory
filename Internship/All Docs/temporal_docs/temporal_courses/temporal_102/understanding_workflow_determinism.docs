@@ -1,0 +1,62 @@
+Understanding Workflow Determinism
+
+1) History Replay: How Temporal Provides Durable Execution
+History Replay, sometimes also called Workflow Replay, is the mechanism that Temporal uses to reconstruct the state of a Workflow Execution
+A Worker might need to use History Replay to recover the state of the Workflow Execution
+
+2) Why Temporal Requires Determinism for Workflows
+A worflow is said to be deterministic if every execution of its workflow definition produces the same commands in the same sequence given the same input
+As a developer, it's important to understand that the Workflow code you write can not catch or handle non-deterministic errors. Instead, you must recognize and avoid the problems that cause them.
+
+3) Python Sandbox Environment
+For performance and behavior reasons, users are encouraged to pass through all third-party modules whose calls will be deterministic. For example:
+with workflow.unsafe.imports_passed_through():
+    import pydantic
+
+How it works
+The Sandbox environment consists of two main components;
+    --> global state isolation
+        The first component of the Sandbox is a global state isolation. Global state isolation uses exec to compile and evaluate statements.
+    --> restrictions
+        Restrictions prevent known non-deterministic library calls.
+
+4) Common Sources of Non-Determinism
+Using Random Numbers
+Accessing / Mutating External Systems or State
+Relying on System Time
+Working Directly with Threads
+Iterating over Data Structures with Unknown Ordering
+Storing or Evaluating the Run ID
+
+5) How Workflow Changes Can Lead to Non-Deterministic Errors
+Compatibility of Workflow Changes
+Examples of Changes That May Lead to Non-Deterministic Errors
+    Adding or removing an Activity
+    Switching the Activity Type used in a call to an Activity Method
+    Adding or removing a Timer
+    Altering the execution order of Activities or Timers relative to one another
+Examples of Changes That Do Not Lead to Non-Deterministic Errors
+    Modifying statements in a Workflow Definition, such as logging statements, that do not affect the Commands generated during Workflow Execution
+    Changing attributes in a ActivityOptions or RetryPolicy
+    Modifying code inside of an Activity Definition
+
+6) Deployment Leads to Non-Deterministic Error
+
+7) Using Workflow Reset to Recover from a Bad Deployment
+Reset the workflow from the previous event to which it caused non-deterministic error is the only way to overcome this situation. However other methods, terminate and cancel can be done but it is often not recommended since the data will be lost.
+Two ways of reseting
+-->Using UI
+-->Using CLI
+temporal workflow reset \
+        --workflow-id pizza-workflow-order-XD001 \
+        --event-id 4 \
+        --reason "Deployed an incompatible change (deleted Activity)"
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,22 @@
+Adopting a Versioning Strategy
+
+1) Migrating Workflows
+
+2) Comparing Versioning Implementations
+
+Advantages of Workflow Type Versioning
+
+Workflow Type versioning is valuable in several respects:
+    Simplicity: Workflow Type versioning provides a straightforward way to version your Workflows, making it an excellent choice for uncomplicated or small-scale projects.
+    Single Worker Fleet: With this approach, you're not required to manage separate Worker fleets for each version of your Workflow, potentially minimizing infrastructure complexity and cost.
+
+Disadvantages of Workflow Type Versioning
+    Version Tracking: All of your Workflow starters need to be informed about each new Workflow Type and its corresponding version, which might introduce communication overhead and room for error.
+    Code duplication: This approach can lead to code duplication, as you need to create a new Workflow Type for each version of your Workflow. This can be especially problematic if you need to make a change to a Workflow that has already branched.
+
+Advantages of Patching
+    Quick Migration: Patching allows you to change the yet-to-be-executed behavior of currently open Workflows while remaining compatible with existing Histories. This is because behavior of new Workflows always takes the newest code path.
+
+Disadvantages of Patching
+    Conceptually complex: While the code to use Patching is straightforward, the conceptual nature of branching is a cognitive burden of needing to understand how both the old and new code paths work.
+    Increased maintenance: As your Workflow code paths start to branch, tracking the state of each branch becomes more complex. This is especially true if you need to patch a Workflow that has already branched. For example, Entity Workflows or indefinitely running Workflows complicate the patching process when you start to patch a Workflow that has already branched.

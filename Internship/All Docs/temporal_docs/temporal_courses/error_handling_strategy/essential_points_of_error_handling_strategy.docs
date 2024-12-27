@@ -1,0 +1,34 @@
+Essential Points of error handling strategy
+
+The following is a summary of the things that you have learned during the course.
+
+Error Handling Concepts
+
+    There are three broad categories of Failures: Transient, Intermittent, and Permanent.
+    Errors in Temporal SDKs use their native language primitives wherever possible and are translated and stored via protobufs.
+
+Creating, Throwing, and Handling Errors
+
+    Errors can be designated as retryable or non-retryable in your code.
+    When handling transient or intermittent issues, start with a relatively short retry interval and fine-tune your backoff coefficient, so that brief network errors do not introduce long delays.
+    Mark any permanent errors as non-retryable.
+
+Timeouts
+
+    Timeouts are generally a better real-world limit than setting a fixed number of retries.
+    Timeouts can be implemented by Heartbeating.
+    Use heartbeating with any long-running Activities to quickly detect issues with your Workers.
+
+Retry Policies
+
+    A different Retry Policy can be configured for each Activity Execution.
+    By default, Workflows do not have an associated Retry Policy.
+    You are required to set either a Start-to-Close or Schedule-to-Close timeout for Activity Executions. Most of the time, a Start-to-Close Timeout will be more predictable than a Schedule-to-Close Timeout.
+    The value of your Start-to-Close Timeout should be slightly larger than the maximum duration of your Activity.
+
+Recovering from Failure
+
+    Temporal facilitates implementing a Saga pattern in your Workflow logic.
+    You can use “compensating” actions to roll back Activity transactions in case of failure.
+    Compensating actions are implemented as additional Activities.
+

@@ -1,0 +1,88 @@
+Understanding Event History
+
+1) Workflow Execution status_code
+There are two states in workflow execution
+    --> Open
+        --> progress
+        --> await
+        Eg: Activity Execution
+            Timer
+    --> Closed
+        --> Completed
+        --> Continued-As-New
+        --> Failed (Because of error)
+        --> Timed out
+        --> Terminated
+        --> Cancelled
+
+The transition from open state to the closed state is a one-way transition.
+Every workflow execution has a unique run ID
+
+2) How Workflow Code Maps to Commands
+Understanding of which lines need interaction with the cluster and which line don't need.
+
+3) Overview of Event History
+Event History represents the Temporal Cluster's perspective about what happened during Workflow Execution.
+Event Histories are persisted to the database used by the Temporal Cluster, so they're durable, and will even survive a crash of the Temporal Cluster itself.
+Two purposes
+-->To provide its guarantee of durable execution, because Events in the history are used to reconstruct the state of a Workflow Execution following a Worker crash. 
+-->History information enables developers to investigate Workflow Executions
+
+Event History Content
+The Event History acts as an ordered append-only log of Events.
+The first Event for any Workflow Execution that was successfully launched is always WorkflowExecutionStarted.
+When the Workflow Execution closes, the final Event will be WorkflowExecutionCompleted
+
+Protecting Confidential Data
+Neither Temporal Cluster nor Temporal Cloud have access to your code or the data processed inside your Workflows and Activities.
+Temporal supports the use of TLS (Transport Layer Security) to provide end-to-end encryption to protect this data as it is transmitted between a Client and Frontend, as well as between different services within the Temporal Cluster.
+
+4) Event History Limits
+In order to conserve space and maintain good performance, Temporal limits both the number of Events and overall size of the Event History.
+
+Event History Item Count
+The Temporal Cluster begins logging warnings after 10K (10,240) events and will log additional warnings as new Events are appended to the history. If the Event History exceeds 50K (51,200) Events, the Workflow Execution may be terminated.
+
+Event History Size
+A Workflow Execution may be terminated if the size of any payload (i.e., the input passed into, or the result returned by, an Activity or Workflow) exceeds 2 MB or if the entire Event History exceeds 50 MB.
+
+5) Event Structure and Attributes
+Every Event has at least three attributes in common. 
+--> The first is the Event ID, which uniquely identifies this Event within the History and also its position within the history. 
+--> The second is the Event time, which is a timestamp representing when the Event occurred. 
+--> The third is the Event Type, which specifies what kind of Event it is
+
+Attributes Vary by Event Type
+Events may also contain additional attributes that vary based on the Event Type. 
+For example, the WorkflowExecutionStarted Event contains the Workflow Type and the data provided as input to at the start of execution. 
+The WorkflowExecutionCompleted Event contains the result of that execution, while failed Workflows will end with a WorkflowExecutionFailed Event that contains the error returned by that execution.
+
+Events related to Activity execution follow a similar pattern. 
+For example, the ActivityTaskScheduled Event contains the Activity Type and input parameters, while the ActivityTaskCompleted Event contains the result of that execution.
+
+6) How Commands Map to Events
+Commands Events
+
+7) Workflow and Activity Task States
+Scheduled --> Added to task queue
+Started --> Worker dequeueing a task
+Completed --> Worker successfully completed it
+
+Activity States:
+ActivityTaskScheduled
+ActivityTaskStarted
+ActivityTaskCompleted ActivityTaskFailed ActivityTaskCanceled ActivityTaskTimedOut
+
+Workflow States:
+WorkflowTaskScheduled
+WorkflowTaskStarted
+WorkflowTaskCompleted WorkflowTaskFailed WorkflowTaskTimedOut
+
+8) Sticky Execution
+
+How Sticky Execution Works
+    -->Once Workflow Execution begins, the Temporal Cluster schedules a Workflow Task and puts it into a Task Queue with the name you specify. Any Worker that polls that Task Queue is eligible to accept the Task and begin executing the Workflow.
+    -->The Worker that picks up this Workflow Task will continue polling the original Task Queue, but will also begin polling an additional Task Queue, which the Temporal Cluster shares exclusively with that specific Worker. This queue, which has an automatically-generated name, is known as a Sticky Queue.
+    -->As the Workflow Execution progresses, the Temporal Cluster schedules additional Workflow Tasks into this Worker-specific Sticky Queue.
+    -->If this Worker fails to start a Workflow Task in the sticky queue shortly after it is scheduled, within five seconds by default, the Temporal Cluster disables stickiness for that Workflow Execution and reschedules the Workflow Task in the original queue, allowing any Worker to pick it up and continue the Workflow Execution.
+*Only for workflows. NOt for activities.

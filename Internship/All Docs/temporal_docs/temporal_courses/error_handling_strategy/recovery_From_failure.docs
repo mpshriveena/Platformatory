@@ -1,0 +1,132 @@
+Recovering from Failure
+
+1) Handling a Workflow Execution that Cannot Complete
+
+There are two primary ways to interrupt a Workflow Execution: 
+--> Canceling
+--> Terminating
+
+Canceling Workflow Executions
+Canceling a Workflow Execution provides a graceful way to stop the Workflow Execution. 
+This is like sending a kill -15 command in UNIX. 
+Canceling a Workflow is a gentle request for the Workflow Execution to stop, but allows the process to perform cleanup before exiting.
+When cancellation,
+    --> The system records a WorkflowExecutionCancelRequested Event in the Workflow History.
+    --> A Workflow Task gets scheduled to process the cancellation.
+    --> The Workflow has the opportunity to execute cleanup logic or other necessary final steps. This might involve releasing resources, notifying other services, or saving the current state.
+    --> The system does not forcibly stop the Workflow. Instead, it allows the Workflow to respond to the cancellation request at its own pace.
+
+Terminating Workflow Executions
+Terminating a Workflow Execution is more abrupt and is similar to killing a process. It forcefully stops the Workflow Execution without any cleanup or grace period.
+Here is what happens during Workflow Termination:
+    --> The system records a WorkflowExecutionTerminated Event in the Workflow History.
+    --> Termination is immediate and unconditional. The Workflow Execution stops right away, without any opportunity for handling or cleanup in the Workflow code.
+    --> When you terminate a Workflow Execution, it will complete the Workflow, causing any Heartbeats to fail, which will look like a Cancellation to any running Activities. An Activity will act like it has been Canceled when it Heartbeats.
+    --> Unlike cancellation, no additional Workflow Task is scheduled following termination.
+
+2) Canceling a Workflow Execution
+
+THere are three ways to cancel a workflow
+
+--> Canceling a Workflow with the Web UI
+    In the upper right hand corner, there is a button labeled Request Cancellation with a drop-down for additional options. 
+    Click on the Request Cancellation button.
+
+--> Canceling a Workflow from the CLI
+    temporal workflow cancel --workflow-id=meaningful-business-id
+
+--> Canceling a Workflow Execution with the SDK
+    await client.get_workflow_handle("your_workflow_id").cancel()
+
+3) Terminating a Workflow Execution
+
+THere are three ways to terminate a workflow
+
+--> Terminating a Workflow Execution with the Web UI
+    In the upper right hand corner, you should see a button labeled Request Cancellation with a down arrow for additional options. Click on the down arrow button to open the additional options.
+    From here, select the Terminate option.
+
+--> Terminating a Workflow Execution from the Command Line
+    temporal workflow terminate \
+    --workflow-id process-invoice-82461092
+    --reason "Invalid input data provided when starting the Workflow"
+
+--> Terminating a Workflow Execution with the SDK
+    handle = client.get_workflow_handle(workflow_id)
+    handle.terminate(reason="Terminating the Workflow")
+
+4) Resetting a Workflow Execution
+
+Another way that you might need to interrupt a Workflow Execution is to reset the Workflow Execution to an earlier state. For example, if you have a Workflow Execution that is blocked by a non-deterministic error, you may want to reset it to an earlier state. However, this will only work if you have removed the source of the non-deterministic error. Also, resetting a Workflow Execution to a certain state will discard any progress the Workflow Execution may have made after that point, so be certain this is the action you wish to take.
+THere are two ways to reset a workflow.
+
+--> Resetting a Workflow Execution with the Web UI
+    In the upper right hand corner, you should see a button labeled Request Cancellation with a down arrow for additional options. Click on the down arrow button to open the additional options. 
+    From here, select the Reset option.
+
+--> Resetting a Workflow Execution with the CLI
+    temporal workflow reset \
+    --workflow-id my-workflow-id \
+    --event-id 4 \
+    --reason "Non-deterministic Error"
+
+5) Rollback Actions and the Saga Pattern
+
+A saga is a pattern used in distributed systems to manage a sequence of local transactions. The Saga pattern is particularly useful in scenarios where a series of related tasks need to be performed in sequence, each dependent on the success of the previous one. If any transaction in the sequence fails, the saga executes actions to rollback the previous operations. This rollback action is known as a compensating action.
+Here are some use cases where the saga pattern may be helpful:
+    --> E-commerce Transactions
+    --> Distributed Data Updates
+
+
+compensations = []
+
+try:
+    compensations.append({"activity": PizzaOrderActivities.revert_inventory, "input": order})
+    await workflow.execute_activity_method(
+        PizzaOrderActivities.update_inventory,
+        order,
+        start_to_close_timeout=timedelta(seconds=5),
+    )
+except ActivityError as e:
+    # Note: If your compensating actions have the possibility
+    # of failure, you'll also want to have try/except blocks here
+    for compensation in reversed(compensations):
+        await workflow.execute_activity_method(
+            compensation["activity"],
+            compensation["input"],
+            start_to_close_timeout=timedelta(seconds=5),
+        )
+    raise e.cause
+
+# bill and order variables omitted for brevity
+
+compensations = []
+
+try:
+    compensations.append({"activity": PizzaOrderActivities.revert_inventory, "input": order})
+    await workflow.execute_activity_method(
+        PizzaOrderActivities.update_inventory,
+        order,
+        start_to_close_timeout=timedelta(seconds=5),
+    )
+
+    compensations.append({"activity": PizzaOrderActivities.refund_bill, "input": bill})
+    await workflow.execute_activity_method(
+        PizzaOrderActivities.send_bill,
+        bill,
+        start_to_close_timeout=timedelta(seconds=5),
+    )
+except ActivityError as e:
+    for compensation in reversed(compensations):
+        await workflow.execute_activity_method(
+            compensation["activity"],
+            compensation["input"],
+            start_to_close_timeout=timedelta(seconds=5),
+        )
+    raise e.cause
+
+
+
+
+
+

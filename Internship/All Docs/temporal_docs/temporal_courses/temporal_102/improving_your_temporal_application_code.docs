@@ -1,0 +1,184 @@
+Improving Your Temporal Application Code
+
+1) Backwards-Compatible Evolution of Input Parameters and Return Values
+
+Specifying dataclass for input and output is a best practices
+from dataclasses import dataclass
+@dataclass
+class GreetingInput:
+    name: str
+    language_code: str
+@dataclass
+class GreetingOutput:
+    hello_message: str
+
+with workflow.unsafe.imports_passed_through():
+    from shared.py import GreetingInput, GreetingOutput
+class GreetingActivities:
+    # An example to show how to access input parameters and create the return value
+    @activity.defn
+    async def greet_in_spanish(self, input: GreetingInput) -> GreetingOutput:
+        if input.language_code == "fr":
+            return GreetingOutput(hello_message=f"Bonjour {input.name}!")
+        # support for additional languages would follow...
+
+When adding a new field to your dataclass, it is important to handle any code changes that may be associated with it. You will likely need to provide a default value or set the new field as Optional.
+
+2) Task Queue Names
+Since Task Queues are created dynamically when they are first used, a mismatch between these two values does not result in an error. Instead, it will result in the creation of two different Task Queues. Consequently, the Worker will not receive any tasks from the Temporal Cluster and the Workflow Execution will not progress.
+
+Running Multiple Worker Processes
+Recommended running at least two Worker Processes for each Task Queue in a production application, each running on a separate host
+
+3) Choosing Workflow IDs
+A Workflow ID is intended to be meaningful for your business logic
+client = await Client.connect("localhost:7233", namespace="default")
+# Execute a workflow
+result = await client.execute_workflow(
+    GreetingWorkflow.run,
+    name,
+    id=f"process-order-number-{input.order_number}",
+    task_queue="my-task-queue-name",
+)
+Temporal guarantees that there can only be a single Workflow Execution with a given Workflow ID running within a Namespace at any point in time 
+
+How Temporal Handles a Workflow ID Conflict
+In the Python SDK, an attempt to start a Workflow Execution while one with the same Workflow ID is already running raises a WorkflowAlreadyStartedError
+
+4) Workflow ID Reuse Policy and Retention Period
+This policy allows for one of four options that govern whether the Workflow ID can be reused:
+    ALLOW_DUPLICATE
+        This is the default, which allows the Workflow ID to be reused by another Workflow Execution in the same Namespace upon the conclusion of the current one, regardless of whether that resulted in success or failure.
+    ALLOW_DUPLICATE_FAILED_ONLY
+        This policy is similar to the default, but only allows the Workflow ID to be reused if the Workflow Execution that used it did not complete successfully.
+    REJECT_DUPLICATE
+        This policy does not allow the Workflow ID to be reused at all, regardless of how the previous one ended.
+    TERMINATE_IF_RUNNING
+        This policy is similar to the default, with one important difference: It terminates the Workflow Execution currently using the specified Workflow ID, if there is one. This ensures that the new Workflow Execution will be the only one running in the Namespace with the specified Workflow ID.
+
+Specifying a Workflow ID Reuse Policy
+Step 1: Add the following statement to your import section
+from temporalio.common import WorkflowIDReusePolicy
+
+Step 2:Include the WorkflowIDReusePolicy attribute in the arguments used to start the Workflow Execution
+client = await Client.connect("localhost:7233", namespace="default")
+result = await client.execute_workflow(
+    GreetingWorkflow.run,
+    name,
+    id=f"process-order-number-{input.order_number}",
+    task_queue="my-task-queue-name",
+    id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY
+)
+
+Retention Period
+In order to maintain good performance and conserve storage space used by the cluster's database, data associated with past Workflow Executions is eventually deleted. This duration between when a Workflow Execution has finished and when it is eligible for automatic deletion is known as the Retention Period. 
+It typically has a value between 1 and 30 days.
+
+Self-hosted Temporal clusters provide the Archival feature. When Archival is enabled, data associated with a Workflow Execution is automatically copied to an appropriate long-term storage system (such as a local filesystem or Amazon S3) before being deleted after the Retention Period is reached.
+Temporal Cloud provides a similar feature, known as Export. After Export is initially configured, it will export history data from your namespace to S3 on an hourly basis.
+
+Retention Periods Do Not Affect Open Workflows
+The countdown for the Retention Period only begins once the Workflow Execution finishes. 
+The Retention Period does not affect Workflow Executions that are currently running
+
+5) Logging in Workflows and Activities
+*For workflows
+workflow.logger
+Eg:
+import logging
+from temporalio import workflow
+logging.basicConfig(level=logging.INFO)
+workflow.logger.debug("Preparing to execute an Activity")
+workflow.logger.info(f"Calculated cost of order. Tax {tax}, Total {total}")
+
+*For activities
+activity.logger
+Eg:
+import logging
+from temporalio import activity
+activity.logger.debug("Executing the get_distance Activity")
+activity.logger.info(f"Distance to address {address} was calculated to be {distance}")
+
+6) Accessing Results
+A program invoking a Workflow or Activity Method does not actually execute those things; instead, these calls submit a request to the cluster to execute them
+The benefits of these types of calls are that they are non-blocking calls, so the flow of control continues with the next statement without having to wait on the Workflow or Activity Execution.
+
+7) Accessing Workflow Results from a Client
+* Requesting Workflow Execution and Awaiting Result
+# Create client connected to server at the given address
+client = await Client.connect("localhost:7233", namespace="default")
+result = await client.execute_workflow(
+    GreetingWorkflow.run,
+    name,
+    id="greeting-tasks-example",
+    task_queue="greeting-tasks",
+)
+* Requesting Workflow Execution and Retrieving the Result Later
+client = await Client.connect("localhost:7233", namespace="default")
+handle = await client.start_workflow(
+    GreetingWorkflow.run,
+    name,
+    id="greeting-tasks-example",
+    task_queue="greeting-tasks",
+)
+await handle.result()
+
+8) Accessing Activity Results from within a Workflow
+Starting an Activity returns an ActivityHandle which is an asyncio.Task
+
+Requesting Activity Execution and Awaiting Result
+When requesting synchronous execution of an Activity that is implemented as a method, you use the execute_activity_method call. When supplying the Activity method to the execute_activity_method call
+from activities import TranslationActivities
+hello_result = await workflow.execute_activity_method(
+    TranslationActivities.translate_term,
+    hello_input,
+    start_to_close_timeout=timedelta(seconds=5),
+)
+
+If your Activity is implemented as a function you would instead call the execute_activity method:
+from activities import translate_term
+result = await workflow.execute_activity(
+    translate_term,
+    hello_input,
+    start_to_close_timeout=timedelta(seconds=5),
+)
+
+Requesting Workflow Execution and Retrieving the Result Later
+You will call await on the handle to retrieve the value, which will then wait until the result becomes available at the end of execution
+from activities import TranslationActivities
+handle = workflow.start_activity_method(
+    TranslationActivities.translate_term,
+    hello_input,
+    start_to_close_timeout=timedelta(seconds=5),
+)
+result = await handle
+
+If your Activity is implemented as a function you would instead call the start_activity method:
+from activities import translate_term
+handle = workflow.start_activity(
+    translate_term,
+    hello_input,
+    start_to_close_timeout=timedelta(seconds=5),
+)
+result = await handle
+
+Deferring Access to Execution Results
+hello = workflow.start_activity_method(
+    TranslationActivities.greet_in_spanish,
+    name,
+    start_to_close_timeout=timedelta(seconds=5),
+)
+goodbye = workflow.start_activity_method(
+    TranslationActivities.farewell_in_spanish,
+    name,
+    start_to_close_timeout=timedelta(seconds=5),
+)
+thanks = workflow.start_activity_method(
+    TranslationActivities.thank_in_spanish,
+    name,
+    start_to_close_timeout=timedelta(seconds=5),
+)
+hello_result = await hello
+goodbye_result = await goodbye
+thanks_result = await thanks
+

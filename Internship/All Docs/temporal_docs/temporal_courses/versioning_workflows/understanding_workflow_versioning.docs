@@ -1,0 +1,164 @@
+Versioning Your Workflows
+
+1) What is Workflow Versioning?
+Workflow Versioning allows you to safely deploy incompatible changes to your Workflow code.
+
+2) Identifying Open Executions by Workflow Type
+Visibility in the Temporal Platform
+The Temporal Web UI is a convenient way to see which Workflow Executions are currently open (running).
+
+Syntax of the List Filter
+WorkflowType = "PizzaWorkflow" AND ExecutionStatus = "Running"
+
+Applying a List Filter in the Web UI
+You can apply a List Filter in the Temporal Web UI by entering it into the text field above the table listing Workflow Executions on the main page and then clicking the Search button to the right of that field.
+
+Applying a List Filter with a Command
+temporal workflow list --query 'WorkflowType = "PizzaWorkflow" AND ExecutionStatus = "Running"'
+
+3) Approaches for Safely Deploying Incompatible Changes
+
+Determine Whether Special Handling is Required
+Some changes (such as modifications to Activity code) do not affect backwards compatibility and can be deployed using the same process you used to deploy the initial version of the code.
+Some other types of changes (such as adding an Activity to a Workflow Definition, modifying Activity or Workflow signatures, or reordering Activities within a Workflow) have the potential to cause non-deterministic errors if other Workflow Executions of the same type are running when the change is deployed. If you can wait until all such executions are complete (and ensure that no new executions are started) before deploying your change, then you won't need to take any extra steps, since there would no longer be any executions started with the previous version of the code.
+It is also important to note that you can't query closed Workflows if you don't version the breaking changes. Attempting to query a non-versioned Workflow that has a newer version running may result in a non-deterministic error, as History Replay happens during a Query. This would result in the Query failing.
+Unfortunately, this is not a realistic scenario for most production systems, which may have thousands, hundreds of thousands, or even millions of concurrent Workflow Executions, each of which may take months or years to complete. It's inevitable that you will need to make changes to your code during that time, in which case you'll need to use one of three approaches that can support Workflow Executions started with both the old and new versions of the code:
+    Using a different Workflow Type
+    Using the Workflow patching API
+    Using Worker Versioning (coming soon)
+
+4) Using a Different Workflow Type for a New Version
+Since incompatible changes only affect open Workflow Executions of the same type, you can avoid the problem by changing the Workflow Type for the new version. This is easily done by copying the Workflow Definition function, giving it a different name, and making sure that both names were registered with the Worker.
+
+@workflow.defn(name="PizzaWorkflow")
+class PizzaWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        # this function contains the original code
+@workflow.defn(name="PizzaWorkflowV2")
+class PizzaWorkflowV2:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        # this function contains the updated code
+
+You can use any name you like for the new function, so long as the first character remains uppercase (this is a requirement for any Workflow Definition, since it must use an exported function). Using some type of version identifier, such as V2 in this example, will make it easier to identify the change.
+After you've confirmed that no open executions based on the old version remain, you can delete the original Workflow Definition and remove its registration from the Worker.
+While this approach can be used to safely deploy changes when there are open Workflow Executions of the original type, it requires you to duplicate code and to update any code and commands used to start the Workflow.
+
+5) Versioning Workflows with the Patching API
+To version your Workflows with the Patching API, you will make calls to the patched() function from within your Workflow Definition. This function takes an id parameter that is unique to this patch and describes the new code change.
+If the Workflow is not currently replaying an existing history, then the patched() function will always return True; this means it is safe for the current Workflow Execution to apply the patch. However, while the Workflow is replaying an existing history, and the history includes a patched() call with the same id in the current Workflow code, then the patched() function returns True. This signifies that the current state of the Workflow already includes the changes from the patch. If the history was produced by a Worker without such a call, then the patched() call will return False, meaning that the historical events were created before the patch was applied.
+If patched() call returns True, then the Workflow code should run the new code. The converse is also true, meaning that if the patched() call returns False, then the old code should be run. This allows you to safely make incompatible changes to your Workflow code.
+
+Patching is a three-step process:
+    --> Patch in any new, updated code using the patched() function. Run the new patched code alongside old code.
+    --> Remove old code and use deprecate_patch() to mark a particular patch as deprecated.
+    --> Once there are no longer any open executions of the previous version of the code, remove deprecate_patch().
+
+Step 1: Patch in New Code
+Imagine that your Workflow notifies your customer when an order is shipped. Specifically, it sends a message by fax machine:
+
+# v1
+@workflow.defn
+class ShippingConfirmation:
+    @workflow.run
+    async def run(self) -> None:
+        self._result = await workflow.execute_activity(
+            send_fax,
+            schedule_to_close_timeout=timedelta(minutes=5),
+        )
+
+Since fax machines are an outdated means of communication, you decide to change this to an Activity that sends an e-mail.
+
+# v2
+@workflow.defn
+class ShippingConfirmation:
+    @workflow.run
+    async def run(self) -> None:
+        self._result = await workflow.execute_activity(
+            send_email,
+            schedule_to_close_timeout=timedelta(minutes=5),
+        )
+
+There are open Workflow Executions for the "v1" function - the one that sends messages with fax machine - so you decide to use the patched() function to make this change while preserving backwards compatibility. You use "changed_notification_type" as your id - passed into the patched() function
+
+# v3
+@workflow.defn
+class ShippingConfirmation:
+    @workflow.run
+    async def run(self) -> None:
+        if workflow.patched("changed_notification_type"):
+            self._result = await workflow.execute_activity(
+                send_email,
+                schedule_to_close_timeout=timedelta(minutes=5),
+            )
+        else:
+            self._result = await workflow.execute_activity(
+                send_fax,
+                schedule_to_close_timeout=timedelta(minutes=5),
+            )
+
+When running the above code for the first time, patched() will insert a marker into the Workflow history along with your id:
+Marker recorded in EventHistory
+During a replay, if a Worker encounters a version marker in the history, it checks if the current Workflow code has a corresponding patched call with the same id. A Marker is only inserted by the patched calls if they are running for the first time. If the Worker is running the newer version of the code with the patched call for the "changed_notification_type" id, it proceeds as expected.
+
+Step 2: Deprecate Patch
+When you have introduced a patch into your Workflow using the patched() function and it has been successfully deployed, you can begin to deprecate the patch. This is where the deprecate_patch() function comes in. The deprecate_patch() function is used to mark a particular patch (identified by an id) as deprecated, meaning that the Workflow should no longer rely on the patch, and you can now retire this code.
+Once you're confident that your Workflows are no longer running the pre-patch code paths, you can deploy your code with deprecate_patch(). These Workers will be running the most up-to-date version of the Workflow code, which no longer requires the patch. The deprecate_patch() function works similarly to the patched() function by recording a marker in the Workflow history. This marker does not fail replay when Workflow code does not emit it.
+This code is safe to deploy once all "v3" or earlier Workflows are complete:
+
+@workflow.defn
+class ShippingConfirmation:
+    @workflow.run
+    async def run(self) -> None:
+        workflow.deprecate_patch("changed_notification_type")
+        self._result = await workflow.execute_activity(
+            send_email,
+            schedule_to_close_timeout=timedelta(minutes=5),
+        )
+Deprecated patches serve as a bridge between the pre-patch code paths and the post-patch code paths, and are useful for avoiding errors resulting from patched code paths in your Workflow Execution History.
+
+Step 3: Safely Deploy New Code
+You can safely remove support for older versions once you are certain that there are no longer any open Workflow Executions based on that version. You can use the following List Filter syntax for this:
+WorkflowType = "ShippingConfirmation" AND ExecutionStatus = "Running" AND TemporalChangeVersion="changed_notification_type"
+Since Workflow Executions that were started before the patched() function was added to the code won't have the associated Marker in their Event History, you'll need to use a different query to determine if any of those are still running:
+WorkflowType = "ShippingConfirmation" AND ExecutionStatus = "Running" AND TemporalChangeVersion IS NULL
+Once you're sure that you will no longer need to Query or Replay any of your pre-patch Workflows, you can then safely deploy Workers that no longer use either the patched or deprecate_patch() calls for the "changed_notification_type" patchId.
+
+Branching with Patching
+A single Workflow Definition that has been modified several times might have multiple Patch IDs, each of which identifies a modification deployed at a specific point in time. However, you can also use a single Patch ID for more than one change in a given Workflow, so long as all those changes were all introduced at the same time. For example, if you removed a call to execute an Activity that occurred at the top of your Workflow Definition and removed another call to execute an Activity at the bottom, you could use the same Patch ID for both so long as you deployed both of these modifications together.
+You can add support for additional versions as needed. For example, as customer feedback revealed that users preferred text messages to email, your updated code might look like this:
+
+@workflow.defn
+class ShippingConfirmation:
+    @workflow.run
+    async def run(self) -> None:
+        if workflow.patched("send_email"):
+            self._result = await workflow.execute_activity(
+                send_email,
+                schedule_to_close_timeout=timedelta(minutes=5),
+            )
+        elif workflow.patched("send_text_message"):
+            self._result = await workflow.execute_activity(
+                send_text_message,
+                schedule_to_close_timeout=timedelta(minutes=5),
+            )
+        else:
+            self._result = await workflow.execute_activity(
+                send_fax,
+                schedule_to_close_timeout=timedelta(minutes=5),
+            )
+
+If the above code is running for the first time, it will insert "sendemail" as a Marker recorded in the Event History and then take that branch. However, if during a replay, a Worker checks if the _current Workflow code has the "send_text_message" id and also sees this Marker in the Event History, it will take the "send_text_message" branch. If during a replay, the Worker does not see any of the Markers in the history, then it will take the last branch, which calls the send_fax Activity.
+
+6) Visualizing Search Attributes
+
+
+
+
+
+
+
+
+
+

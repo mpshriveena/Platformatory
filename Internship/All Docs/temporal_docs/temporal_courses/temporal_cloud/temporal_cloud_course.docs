@@ -1,0 +1,128 @@
+
+What is a Namespace?
+
+Namespaces are used to isolate different types of Workflows within your Temporal Cloud account.
+
+They provide a flexible mechanism that allows you to separate Workflow Executions according to whatever criteria make sense for your organization. Many organizations choose to have a different Namespace for different teams or departments, so Workflow Executions associated with Marketing might run in one Namespace while Workflow Executions associated with Accounting might run in another Namespace. Other organizations create them according to phases in the application's lifecycle, in which case they might have one Namespace for development, another for staging, and another for production. Another common pattern is to have a different Namespace for each distinct application or use case. Again, each organization is free to define Namespaces according to their own needs.
+
+In addition to providing isolation for Workflow Executions, there are some settings in Temporal that are applied on a per-Namespace basis, so you can choose the configuration needed for your Workflow Executions without affecting the ones running in another Namespace.
+Retention Period
+
+An example of a setting that can be changed separately for each Namespace is the Retention Period. This value specifies how many days after a Workflow Execution has finished that data associated with that execution will be retained. This is set to 30 days by default, but Temporal Cloud allows you to set the Retention Period between 1 and 90 days. The new value applies to all new Workflow Executions started after the change.
+
+Although it may seem tempting to increase the Retention Period, doing so increases the amount of data being stored as well as the cost required to store it. Keep in mind that the Retention Period only applies to Workflow Executions that are no longer running, so data associated with a running Workflow Execution is always available, regardless of how long it runs.
+How Many Namespaces Can You Create?
+
+By default, you can create up to 10 namespaces within your Temporal Cloud account, but if you need more, you can create a ticket with our support team to request an increase. In the next section, you'll learn how to create a Namespace in your Temporal Cloud account.
+
+
+Account-Level Roles
+
+The list of users linked to your Temporal Cloud account is displayed on the Users tab of the Settings page. In addition to each user's current status and e-mail address, you can see the account-level roles they've been granted.
+
+Screenshot showing the list of users in the Temporal Cloud account
+
+Account-level roles specify the default level of access that a given user will have over all Namespaces within the account. As you will see later in the course, you may also grant each user additional permissions on specific Namespaces within the account, as needed.
+
+Temporal Cloud defines three account-level roles.
+Global Admin
+
+The Global Admin role provides the broadest set of privileges to Namespaces within the account. It allows comprehensive administrative access, including the ability to create, modify, and delete any Namespaces, view and control Workflow Executions, manage users, and view usage information.
+Developer
+
+The Developer role provides a moderate set of privileges to Namespaces within the account. Like the Global Admin role, it allows the grantee to view and control Workflow Executions, but not manage users or view usage information. Someone who is assigned this role can only modify and delete Namespaces that they created.
+Read-Only
+
+The Read-Only role provides a minimal set of privileges to Namespaces within the account. Users who are assigned this role can only view information, not modify or delete it, and will only have access to the namespaces to which they've specifically been assigned.
+
+
+Viewing, Editing, and Deleting a User Account
+
+As you saw earlier, the Users tab on the Settings page displays the list of users within your Temporal Cloud account. What you might not have noticed is that, just to the right of the Role column, you can see the invitation status.
+
+An active invitation, meaning one that was recently sent and hasn't yet been accepted, will have a Resend Invite link. This allows you to resend the message in case the user didn't receive it or accidentally deleted it. If the invitation hasn't been accepted within 30 days, it will expire. When this happens, there will be an Expired label in that row, but you can overcome this by using the Resend Invite link next to it.
+
+Screenshot showing user list with highlighted resend links and expired label
+Editing a User
+
+Clicking anywhere within the Status, Email, or Role columns will take you to a page with details for the user listed in that row. This page lists the account-level role and the permissions they've been granted to each Namespace.
+
+Screenshot showing per-Namespace permissions for a specific user
+
+Clicking the Edit Role button on this page allows you to modify those details. For example, you could select a different account-level role for this user by using the dropdown menu near the top of the page. The screenshot below shows how to use the Namespace permissions table to grant this user additional permissions within a specific Namespace. After making any changes, click the Save button to retain them and return to the user listing.
+
+Screenshot showing Namespace permission grant during user edit
+Deleting a User
+
+You can permanently remove a user from your Temporal Cloud account by either clicking the Delete User button on the Edit User page or by clicking the Delete link in user listing table. This will display a dialog box asking you to confirm your choice.
+
+Screenshot showing the user delete confirmation dialog
+
+
+What is a Search Attribute?
+Locating a Specific Workflow Execution
+
+To understand the purpose of a Custom Search Attribute, think back to the Workflows page in Temporal Cloud. As you learned, you can use the Status, Workflow ID, Run ID, and Type columns to filter this table by specific values. This can be very helpful when you're trying to find a specific Workflow Execution among thousands or perhaps even millions.
+
+Screenshot showing a large set of Workflow Executions in the Web UI
+List Filters
+
+Although those column headings represent a limited set of filters, Temporal allows you to perform more powerful searches by using a SQL-like expression known as a List Filter, which you can enter in the text field just above the table.
+
+A List Filter allows you to query by Status, Workflow ID, Run ID, and Type, as well as more than a dozen other built-in attributes, to filter the results shown in the table. You can also combine multiple search attributes in your expression by using Boolean operators, such as AND and OR. For example, the screenshot below shows a List Filter that matches running Workflow Executions that have a Type of either ProcessOrder or ProcessShipment.
+
+Screenshot showing the application of a List Filter in the Web UI
+Custom Search Attributes
+
+In addition to the built-in Search Attributes, such as those used in the List Filter shown above, Temporal supports the creation of custom Search Attributes within each Namespace. These allow you to search Workflow Executions by whatever criteria are relevant to your business logic. For example, if there are Workflows running in your Namespace that relate to product sales, then you might define custom Search Attributes for ProductID, Region, and OrderNumber so that you can filter by those values.
+
+
+Observability Overview
+
+The SDKs that you use to develop Temporal applications emit metrics, including statistics about Workflow and Activity Executions, Task Queue polling, and caching. Temporal Cloud also emits metrics of its own, which includes statistics about requests, errors, timeouts, and state transitions, as well as data about latency. Many customers use third-party observability tools, such as Grafana or Datadog, to collect and visualize these metrics. This assists them with monitoring performance and troubleshooting problems.
+
+To integrate a third-party observability tool with Temporal Cloud, you'll need to configure an endpoint that your observability tool can use to collect its metrics.
+
+Generating an Observability Endpoint
+
+To configure an observability endpoint, you must be logged in as a user with the Global Admin role. You will also need a CA Certificate in PEM format.
+The Integration Page
+
+From the Settings page, click the Integrations tab. This page is where you can set up integration between Temporal Cloud and third-party tools. On this page, you'll find Observability as well as Audit Logging. Although this lesson will cover the setup for observability, Audit Logging deserves a brief mention. This feature allows you to stream forensic event data, which is the "who, when, and what" of activity in your Temporal Cloud account, to a remote Amazon Kinesis endpoint in the AWS cloud service. Storing this information in an external system provides an extra layer of security and helps organizations to fulfill audit and compliance requirements.
+
+Screenshot showing the Temporal Cloud Integrations page
+The Observability Page
+
+To set up an observability endpoint, click the Observability heading on the Integrations tab shown above.
+
+This displays a page with a text area below the Certificates heading. Paste the complete PEM-encoded CA certificate, including the lines that say BEGIN CERTIFICATE and END CERTIFICATE, into this text area.
+
+Screenshot showing Temporal Cloud Observability Endpoint creation
+
+Afterwards, click the Save button. The page should update to show a message indicating that an update is underway.
+
+Screenshot showing update message during Temporal Cloud Observability Endpoint creation
+
+If the page doesn't refresh within two minutes, refresh the page manually in order to check if the endpoint is now available. Once it is available, you will see a new Endpoint section above the Certificates section you saw earlier. This new section will display the URL for the endpoint you created.
+
+Screenshot showing the Temporal Cloud Observability Endpoint created
+
+To test that that endpoint is working, you will also need the Client certificate (signed by that CA) and its corresponding private key.
+
+You can test that the endpoint is working by using a command-line HTTP client, such as curl, to make a request for a specific metric. You must specify the path to your client certificate, which has the CA in its chain of trust, and its corresponding private key. You will need to replace YOUR_ENDPOINT in the URL shown in the command example below with the endpoint that you've just set up:
+
+$ curl -v \
+    --cert your-client-cert.pem \
+    --key your-client-cert.key \
+    'YOUR_ENDPOINT/api/v1/query?query=temporal_cloud_v0_total_action_count'
+
+
+Usage Overview
+
+Temporal Cloud is a consumption-based service, so the cost varies according to your usage. There are two main variables that affect that price: Actions and storage.
+Actions
+
+Actions occur as a result of Workflow Execution. For example, starting the Workflow Execution is one action, while starting a Timer or Activity within that Workflow are also Actions.
+Storage
+
+Storage will vary based on how many Workflow Executions you run and how much data (for example, values passed as input or returned as output) is associated with them. The total storage amount includes both "open" storage (used for Workflow Executions that are currently running) and "closed" storage (used for Workflow Executions that are no longer running but still being retained). Therefore, another important factor for storage is the Retention Period, which governs how long that data will be stored

@@ -1,0 +1,30 @@
+Using Timers in a Workflow Definition
+
+1) What is a Timer?
+Durable Timers are one of the features provided by Temporal and are used to introduce delays in a Workflow Execution. 
+When a Timer is set, the execution of code awaiting that timer will block until the Timer fires. 
+Timers are maintained by the Temporal Cluster and the Worker does not consume resources while awaiting them.
+
+2) Use Cases for Timers
+One is that your business logic dictates that you execute an Activity at fixed intervals. For example, a Workflow used for customer onboarding might send e-mail reminders one day, one week, and/or one month after they sign up.
+Another is that you need to execute an Activity multiple times at intervals that are dynamically calculated. In this case, you might delay calling one Activity based on the value returned by a previous Activity.
+Yet another reason is that you need to allow time for offline steps to complete before proceeding. For example, a business process may require a fixed period of time to elapse before the next task can begin.
+
+3) Timer APIs Aren't Provided in the Python SDK
+Unlike the Go and Java SDKs, the Python SDKs doesn't provide Timer related utilities.
+The Python achieves this through the implementation of a custom durable asyncio event loop that Workflows are executed in.
+Eg: asyncio.sleep(30)
+
+4) Pausing Workflow Execution for a Specified Duration
+Use the asyncio.sleep function from the asyncio library if you need to pause further execution of the Workflow for a specific duration:
+import asyncio
+await asyncio.sleep(10)
+Calling this function blocks until the Timer fires (or is canceled). 
+If you'd like to start a Timer, but continue to do unrelated work until the timer, you can use the create_task method or others supported by the Python asyncio library
+
+5) What Happens to a Timer if the Worker Crashes?
+Timers are durable and are maintained by the Temporal Cluster.
+To better understand the behavior of a Timer in the event of a Worker crash, consider the following scenario: Your Workflow code uses asyncio.sleep(10) to set a Timer for 10 seconds and you have a single Worker process, which happens to crash 3 seconds later.
+    If you restart the Worker process 2 seconds later, then Workflow Execution will pause for the remaining 5 seconds of the Timer, and it will be as if it had never crashed at all
+    However, if you started it 20 minutes later, then the Timer will have already fired, and the Worker will resume execution of the remaining Workflow code without additional delay
+Note: Since Timers are maintained by the Temporal Cluster, they fire regardless of whether any Workers are running.

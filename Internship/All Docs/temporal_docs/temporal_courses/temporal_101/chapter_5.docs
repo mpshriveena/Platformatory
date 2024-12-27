@@ -1,0 +1,10 @@
+Temporal 101 with Python
+
+Chapter 5: Viewing Workflow Execution History
+
+temporal workflow show --workflow-id my-first-workflow
+
+Namespace
+Namespace provides isolation within temporal cluster
+One workflow ID is unique to one namespace
+default namespace: default

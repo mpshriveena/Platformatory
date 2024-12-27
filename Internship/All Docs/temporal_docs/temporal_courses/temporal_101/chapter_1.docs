@@ -1,0 +1,51 @@
+Temporal 101 with Python
+
+Chapter 1: About this Course
+
+Creating a live environment
+
+1) Use the following link and sign in using GitHub account
+   Optionally sign in using Linked In account
+https://gitpod.io/#https://github.com/temporalio/edu-101-python-code
+
+Creating a local environment
+
+I) Install the Temporal Python SDK
+
+If we wish not to use live environment. let's setup our own environment
+1) Make sure you have python and Git installed.
+2) Do the following commands
+
+mkdir temporal-project
+cd temporal-project
+sudo apt install python3.8-venv  #Specify your python version
+python3 -m venv env
+python3 -m pip install temporalio
+
+3) You should see the following message
+Successfully installed protobuf-5.29.1 python-dateutil-2.9.0.post0 six-1.17.0 temporalio-1.8.0 types-protobuf-5.28.3.20241203 typing-extensions-4.12.2
+
+II) Set up a local Temporal Service for development with Temporal CLIENT
+
+4) Install Temporal CLI. The following link is for linux amd64
+https://temporal.download/cli/archive/latest?platform=linux&arch=amd64
+5) Extract the tar file
+6) Move or copy the temporal inside the extracted tar to binary fromPrivilegedListener
+sudo cp /home/mpshriveena/Downloads/temporal_cli_1.1.2_linux_amd64/temporal /usr/local/bin/
+7) Verify the version of temporal
+temporal --version
+source ./env/bin/activate
+8) Start the temporal server using the following command
+temporal server start-dev
+9) It should return the following output
+CLI 1.1.2 (Server 1.25.2, UI 2.32.0)
+Server:  localhost:7233
+UI:      http://localhost:8233
+Metrics: http://localhost:46457/metrics
+10) The Temporal Service will be available on localhost:7233.
+11) The Temporal Web UI will be available at http://localhost:8233.
+12) If we want to change the port
+temporal server start-dev --ui-port 8080
+13) The temporal server start-dev command uses an in-memory database, so stopping the server will erase all your Workflows and all your Task Queues. If you want to retain those between runs, start the server and specify a database filename using the --db-filename option, like this:
+temporal server start-dev --db-filename temporal_data.db
+14) Note: certain terms used, such as Workflow, Activity, and Event History, are capitalized

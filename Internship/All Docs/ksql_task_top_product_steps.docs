@@ -1,0 +1,374 @@
+KSQL Task Steps
+
+cd Desktop/Platformatory/Daily\ Codes/ksql-tasks/ksql-exercises/
+sudo systemctl status postgresql
+sudo systemctl stop postgresql
+
+Step 1: Add the configurations for Schema-Registry, KSQL and Connect
+
+version: '3.7'
+services:
+  app:
+    build: .
+    volumes:
+      - ./:/app
+    environment:
+      - POSTGRES_DB=plf_training
+      - POSTGRES_USER=platformatory
+      - POSTGRES_PASSWORD=plf_password
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:14
+    ports:
+      - 5432:5432
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_DB=plf_training
+      - POSTGRES_USER=platformatory
+      - POSTGRES_PASSWORD=plf_password
+
+  zookeeper:
+    image: 'confluentinc/cp-zookeeper'
+    container_name: zookeeper
+    ports:
+      - '2181:2181'
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    restart: always
+
+  kafka-1:
+    image: 'confluentinc/cp-server:latest'
+    container_name: kafka-1
+    depends_on:
+      - zookeeper
+    ports:
+      - '9094:9094'
+      - '9091:9091'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9094,INTERNAL://kafka-1:9091
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+    volumes:
+      - kafka-1-data:/var/lib/kafka/data
+      - ./:/kafka
+    restart: always
+
+  kafka-2:
+    image: 'confluentinc/cp-server:latest'
+    container_name: kafka-2
+    depends_on:
+      - zookeeper
+      - kafka-1
+    ports:
+      - '9095:9095'
+      - '9092:9092'
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9095,INTERNAL://kafka-2:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+    volumes:
+      - kafka-2-data:/var/lib/kafka/data
+      - ./:/kafka
+    restart: always
+
+  kafka-3:
+    image: 'confluentinc/cp-server:latest'
+    container_name: kafka-3
+    depends_on:
+      - zookeeper
+      - kafka-1
+      - kafka-2
+    ports:
+      - '9096:9096'
+      - '9093:9093'
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9096,INTERNAL://kafka-3:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+    volumes:
+      - kafka-3-data:/var/lib/kafka/data
+      - ./:/kafka
+    restart: always
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.4.0
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+    command: schema-registry-start /etc/schema-registry/schema-registry.properties
+    ports:
+      - "8081:8081"
+    volumes:
+    - ./schema-registry:/etc/schema-registry
+    - ./:/kafka
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+
+  connect:
+    image: confluentinc/cp-server-connect:7.4.0
+    hostname: connect
+    container_name: connect
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+      - schema-registry
+    command: connect-distributed /etc/kafka/connect-distributed.properties
+    ports:
+      - "8083:8083"
+    volumes:
+    - ./connect:/etc/kafka
+    - ./:/kafka
+    - ./connect/connectors/confluentinc-kafka-connect-jdbc-10.8.0:/usr/share/jdbc-connector/confluentinc-kafka-connect-jdbc-10.8.0
+    - ./connect/connectors/confluentinc-kafka-connect-datagen-0.6.6:/usr/share/datagen-connector/confluentinc-kafka-connect-datagen-0.6.6
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2048M
+
+  ksqldb-server:
+    image: confluentinc/ksqldb-server
+    hostname: ksqldb-server
+    container_name: ksqldb-server
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+      - schema-registry
+    ports:
+      - "8088:8088"
+    environment:
+      KSQL_LISTENERS: http://0.0.0.0:8088
+      KSQL_BOOTSTRAP_SERVERS: kafka-1:9091,kafka-2:9092,kafka-3:9093
+      KSQL_KSQL_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      KSQL_KSQL_LOGGING_PROCESSING_STREAM_AUTO_CREATE: "true"
+      KSQL_KSQL_LOGGING_PROCESSING_TOPIC_AUTO_CREATE: "true"
+
+  # Access the cli by running:
+  # > docker-compose exec ksqldb-cli  ksql http://ksqldb-server:8088
+  ksqldb-cli:
+    image: confluentinc/ksqldb-cli
+    container_name: ksqldb-cli
+    depends_on:
+      - ksqldb-server
+    entrypoint: /bin/sh
+    tty: true
+
+volumes:
+  kafka-1-data:
+  kafka-2-data:
+  kafka-3-data:
+
+Step 2: Up the docker compose two times in detached mode.
+
+docker-compose up -d --build
+docker-compose up -d
+
+Step 3: Check whether Postgres Database has product details in it.
+
+Execute the following container command
+docker-compose exec postgres bash
+
+Once inside the container, execute the following command.
+psql -U platformatory -d plf_training
+
+List all tables
+\dt
+
+View contents of a particular tables
+SELECT * FROM product;
+
+To exit from the tables
+\q
+
+Step 4: Create two topics "purchase" and "product" for storing the purchase and product details.
+
+sudo docker exec -u root -it kafka-1 /bin/bash
+
+kafka-topics --bootstrap-server kafka-1:9091 --topic purchase --create --partitions 6 --replication-factor 3
+kafka-topics --bootstrap-server kafka-1:9091 --topic product --create --partitions 3 --replication-factor 3
+kafka-topics --bootstrap-server kafka-1:9091 --list
+
+Step 5: Create a file named "datagen-purchase-config.json" for creating the configuration for datagen connector for generating purchase data as per provided schema.
+
+{
+    "name": "datagen-purchase",
+    "config": {
+      "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+      "kafka.topic": "purchase",
+      "value.schema": "$(cat /kafka/purchase-schema.json)",
+      "schema.filename": "/kafka/purchase-schema.json",
+      "max.interval": 1000,
+      "iterations": -1,
+      "tasks.max": 1,
+      "key.field": "product_id",
+      "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+      "value.converter": "io.confluent.connect.avro.AvroConverter",
+      "value.converter.schema.registry.url": "http://schema-registry:8081",
+      "transforms": "SetKey,copyFieldToKey,extractKeyFromStruct",
+      "transforms.SetKey.type": "org.apache.kafka.connect.transforms.ValueToKey",
+      "transforms.SetKey.fields": "product_id",
+      "transforms.copyFieldToKey.type":"org.apache.kafka.connect.transforms.ValueToKey",
+      "transforms.copyFieldToKey.fields":"id",
+      "transforms.extractKeyFromStruct.type":"org.apache.kafka.connect.transforms.ExtractField$Key",
+      "transforms.extractKeyFromStruct.field":"id"
+    }
+  }
+
+Step 6: Create the datagen connector
+
+curl -X POST \
+  -H "Content-Type: application/json" \
+  --data @/kafka/datagen-purchase-config.json \
+  http://connect:8083/connectors
+
+Step 7: Create a file named "jdbc-source-postgres.json" for creating the configuration for JDBC Source Connector
+
+{
+    "name": "jdbc_source_postgres",
+    "config": {
+      "connector.class": "io.confluent.connect.jdbc.JdbcSourceConnector",
+      "connection.url": "jdbc:postgresql://postgres:5432/plf_training",
+      "connection.user": "platformatory",
+      "connection.password": "plf_password",
+      "kafka.topic": "product",
+      "mode":"incrementing",
+      "incrementing.column.name":"id",
+      "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+      "transforms":"SetKey,copyFieldToKey,extractKeyFromStruct",
+      "transforms.SetKey.type": "org.apache.kafka.connect.transforms.ValueToKey",
+      "transforms.SetKey.fields": "id",
+      "transforms.copyFieldToKey.type":"org.apache.kafka.connect.transforms.ValueToKey",
+      "transforms.copyFieldToKey.fields":"id",
+      "transforms.extractKeyFromStruct.type":"org.apache.kafka.connect.transforms.ExtractField$Key",
+      "transforms.extractKeyFromStruct.field":"id"
+    }
+  }
+
+Step 8: Create the JDBC connector
+
+curl -X POST -H "Content-Type: application/json" \
+    --data @/kafka/jdbc-source-postgres.json \
+    http://connect:8083/connectors
+
+Step 9: Verify the contents of both the topics, the status of both the connectors and schema registration in schema registry.
+
+curl http://connect:8083/connectors/jdbc_source_postgres/status
+curl http://connect:8083/connectors/datagen-purchase/status
+
+kafka-console-consumer --bootstrap-server kafka-1:9091 --topic purchase --from-beginning --property print.key=true
+kafka-console-consumer --bootstrap-server kafka-1:9091 --topic product --from-beginning --property print.key=true
+
+curl -X GET http://schema-registry:8081/subjects/purchase-value/versions/1
+curl -X GET http://schema-registry:8081/subjects/product-value/versions/1
+
+Step 10: Do the following steps to do stream Processing in KSQL to find the Maximum Sales amount for each category for 5 minutes in the past 1 hour.
+
+docker-compose exec ksqldb-cli ksql http://ksqldb-server:8088
+SHOW TOPICS;
+
+1) Create Stream from the purchase topic
+CREATE STREAM PURCHASE_STREAM (
+  ID BIGINT,
+  PRODUCT_ID STRING,
+  QUANTITY BIGINT,
+  CUSTOMER_ID STRING,
+  DISCOUNT DOUBLE
+) WITH (
+  KAFKA_TOPIC = 'purchase',
+  VALUE_FORMAT = 'AVRO',
+  PARTITIONS=6
+);
+
+2) Create Table from the product topic
+CREATE TABLE PRODUCT_TABLE (
+  ID STRING PRIMARY KEY,
+  NAME STRING,
+  CATEGORY STRING,
+  PRICE DOUBLE
+) WITH (
+  KAFKA_TOPIC = 'product',
+  VALUE_FORMAT = 'AVRO'
+);
+
+3) Confirm whether they are created
+SHOW STREAMS;
+SHOW TABLES;
+
+4) Check the contents of the purchase stream and product table.
+SELECT * FROM PURCHASE_STREAM EMIT CHANGES;
+SELECT * FROM PRODUCT_TABLE EMIT CHANGES;
+
+5) Repartitioning the stream because join can be done only when the partitions are in the same number.
+-- Partition by the key that matches the table
+CREATE STREAM PURCHASE_STREAM_REPARTITIONED 
+WITH (KAFKA_TOPIC='PURCHASE_STREAM_REPARTITIONED', PARTITIONS=3, VALUE_FORMAT='
+AVRO') AS 
+SELECT 
+  ID, 
+  PRODUCT_ID, 
+  QUANTITY, 
+  CUSTOMER_ID, 
+  DISCOUNT
+FROM PURCHASE_STREAM
+PARTITION BY PRODUCT_ID;  
+
+6) CHeck its contents
+SELECT * FROM PURCHASE_STREAM_REPARTITIONED EMIT CHANGES;
+
+7) Join the product information with the purchase information using left join.
+CREATE STREAM PURCHASE_DETAILS AS 
+SELECT 
+  P.ID AS PURCHASE_ID, 
+  P.PRODUCT_ID, 
+  P.QUANTITY, 
+  P.CUSTOMER_ID, 
+  P.DISCOUNT, 
+  PT.NAME AS PRODUCT_NAME, 
+  PT.CATEGORY AS PRODUCT_CATEGORY, 
+  PT.PRICE AS PRODUCT_PRICE,
+  ((P.QUANTITY * PT.PRICE) - (((P.QUANTITY * PT.PRICE) * P.DISCOUNT) / 100)) AS SALES_AMOUNT
+FROM PURCHASE_STREAM_REPARTITIONED P
+LEFT JOIN PRODUCT_TABLE PT
+ON P.PRODUCT_ID = PT.ID
+EMIT CHANGES;
+
+8) Verify its contents
+SELECT * FROM PURCHASE_DETAILS EMIT CHANGES;
+
+7) Get the max of the sales amount within the window
+CREATE TABLE CATEGORY_MAX_SALES
+WITH (KAFKA_TOPIC='CATEGORY_MAX_SALES', VALUE_FORMAT='AVRO', KEY_FORMAT='AVRO') AS 
+SELECT 
+  PRODUCT_CATEGORY,
+  MAX(SALES_AMOUNT) AS MAX_SALES_AMOUNT,
+  WINDOWSTART AS WINDOW_START,
+  WINDOWEND AS WINDOW_END
+FROM PURCHASE_DETAILS
+WINDOW HOPPING (SIZE 1 HOUR, ADVANCE BY 5 MINUTES)
+GROUP BY PRODUCT_CATEGORY
+EMIT CHANGES;
+
+8) Verify its contents to see the final output ie., the maximum sales of each category within a window.
+SELECT * FROM CATEGORY_MAX_SALES EMIT CHANGES;

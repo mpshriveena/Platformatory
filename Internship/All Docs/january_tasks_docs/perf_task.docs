@@ -1,0 +1,17 @@
+Performance Metrics using Kafka perf-test CLI
+
+Throughput - The number of messages processed per second.
+Latency - The time taken for a message to be produced, sent, and consumed.
+
+kafka-producer-perf-test \
+  --topic test-topic \
+  --num-records 100000 \
+  --record-size 1000 \
+  --throughput 10000 \
+  --producer-props bootstrap.servers=localhost:9094
+
+kafka-consumer-perf-test \
+  --topic test-topic \
+  --broker-list localhost:9094 \
+  --group test-group \
+  --messages 100000

@@ -1,0 +1,118 @@
+AVRO Task
+
+Problem Statement
+Develop Avro producer and Avro consumer with Schema Registry integration to produce and consume messages from Kafka. Demonstrate performance metrics using Kafka perf-test CLIs to observe the throughput and latency metrics with changes to Producer and Consumer configurations respectively.
+
+Solution
+
+1) INstall the necessary requirements required for this task in a virtual environment
+cd /home/mpshriveena/Desktop/Platformatory/Daily Codes/january_tasks/
+source ./env/bin/activate
+sudo apt update
+pip install kafka-python
+wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.0.0_1.0.2g-1ubuntu4_amd64.deb
+sudo dpkg -i libssl1.0.0_1.0.2g-1ubuntu4_amd64.deb
+sudo apt install librdkafka-dev
+pip install confluent-kafka==1.8.2
+pip install requests
+pip install avro
+pip install --upgrade pip setuptools wheel
+pip install avro-python3
+cd /avro_tasks
+
+2) avro_producer.py
+
+import json
+from confluent_kafka import avro
+from confluent_kafka.avro import AvroProducer
+with open('avro_schema.avsc', 'r') as schema_file:
+    value_schema = avro.loads(schema_file.read())
+with open('avro_data.json', 'r') as data_file:
+    employee_data = json.load(data_file)
+config = {
+    'bootstrap.servers': 'localhost:9094',
+    'schema.registry.url': 'http://localhost:8081'
+}
+producer = AvroProducer(config, default_value_schema=value_schema)
+for record in employee_data:
+    producer.produce(topic='employee_topic', value=record)
+producer.flush()
+print("Employee data successfully produced!")
+
+3) avro_consumer.py
+
+from confluent_kafka.avro import AvroConsumer
+config = {
+    'bootstrap.servers': 'localhost:9094',
+    'schema.registry.url': 'http://localhost:8081',
+    'group.id': 'employee_group',
+    'auto.offset.reset': 'earliest'
+}
+consumer = AvroConsumer(config)
+consumer.subscribe(['employee_topic'])
+try:
+    while True:
+        msg = consumer.poll(1.0)
+        if msg is None:
+            continue
+        if msg.error():
+            print(f"Error: {msg.error()}")
+            continue
+        print(f"Consumed record: {msg.value()}")
+except KeyboardInterrupt:
+    print("Consumer interrupted")
+finally:
+    consumer.close()
+
+4) avro_schema.avsc
+
+{
+    "namespace": "employee.avro",
+    "type": "record",
+    "name": "Employee",
+    "fields": [
+        {"name": "id", "type": "int"},
+        {"name": "name", "type": "string"},
+        {"name": "department", "type": "string"},
+        {"name": "salary", "type": "float"}
+    ]
+}
+
+5) avro_data.json
+
+[
+    {
+        "id": 1,
+        "name": "John Doe",
+        "department": "Engineering",
+        "salary": 75000.0
+    },
+    {
+        "id": 2,
+        "name": "Jane Smith",
+        "department": "HR",
+        "salary": 65000.0
+    },
+    {
+        "id": 3,
+        "name": "Alice Brown",
+        "department": "Marketing",
+        "salary": 55000.0
+    }
+]
+
+6) Create a topic for this task
+kafka-topics --bootstrap-server localhost:9094 --create --topic employee_topic
+kafka-topics --bootstrap-server localhost:9094 --list
+
+7) Run the producer
+python3 avro_producer.py
+
+8) Run the consumer
+python3 avro_consumer.py
+
+9) To see the raw avro data
+kafka-console-consumer --bootstrap-server localhost:9094 --topic employee_topic --from-beginning
+
+10) To check whether the schema is registered in the schema registry
+curl -X GET http://localhost:8081/subjects/employee_topic-value/versions/1

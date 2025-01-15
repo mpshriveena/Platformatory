@@ -1,0 +1,58 @@
+Task: Simple Nginx Container
+
+Problem Statement
+
+Create a dockerfile (or yaml file) to deploy simple nginx container and :
+- verify status of container
+- logs of container
+- provide description of container image
+
+Solution
+
+1) nginx-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
+
+2) Apply
+kubectl apply -f nginx-deployment.yaml
+
+3) verify status of container
+kubectl get pods
+kubectl get deployments
+kubectl get services
+
+4) logs of container
+kubectl logs nginx-deployment-54b9c68f67-8cn2l
+
+5) provide description of container image
+kubectl describe pod nginx-deployment-54b9c68f67-8cn2l

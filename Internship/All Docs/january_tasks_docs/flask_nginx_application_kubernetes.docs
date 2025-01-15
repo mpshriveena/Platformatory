@@ -1,0 +1,166 @@
+Task: Deployment for Nginx Application
+
+Problem Statement
+
+Create a deployment for nginx application:
+- scale deployment from 1 to 3
+- verify pod status
+
+Solution
+
+1) Create a folder in this structure
+
+flask_nginx_kubernetes_application
+├── app
+│   ├── app.py
+│   ├── Dockerfile
+│   └── requirements.txt
+├── flask-nginx-deployment.yaml
+└── nginx
+    ├── Dockerfile
+    └── nginx.conf
+
+2) app.py
+
+from flask import Flask
+app = Flask(__name__)
+@app.route('/')
+def hello():
+    return "Hello World!! This is integration of flask and Nginx and deployed in kubernetes"
+if __name__ == '__main__':
+    app.run()
+
+3) Dockerfile
+
+FROM python:3.8-slim
+WORKDIR /app
+COPY . /app
+RUN pip install --no-cache-dir -r requirements.txt
+CMD ["gunicorn", "app:app", "-b", "0.0.0.0:8000"]
+
+4) requirements.txt
+
+flask
+gunicorn
+
+5) flask-nginx-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-app
+  labels:
+    app: flask-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flask-app
+  template:
+    metadata:
+      labels:
+        app: flask-app
+    spec:
+      containers:
+        - name: flask-app
+          image: mpshriveena/flask1:latest
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-app
+spec:
+  selector:
+    app: flask-app
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: mpshriveena/nginx1:latest
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: NodePort
+
+6) Dockerfile
+
+FROM nginx
+RUN rm /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/
+
+7) nginx.conf
+
+upstream flaskapp {
+server flask-app:8000;
+}
+
+server {
+listen 80;
+
+    location / {
+        proxy_pass http://flaskapp;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+8) Build the images for flask app and nginx
+
+cd ./app
+docker build -t mpshriveena/flask1:latest .
+docker push mpshriveena/flask1
+cd ../nginx
+docker build -t mpshriveena/nginx1:latest .
+docker push mpshriveena/nginx1
+cd ..
+
+9) Apply
+
+kubectl apply -f flask-nginx-deployment.yaml
+minikube service flask-nginx-Service
+
+10) Getting logs and pod status
+
+kubectl logs flask-nginx-deployment-f8b765578-czwnw
+kubectl get pods
+kubectl get deployments
+kubectl get services
+
+11) Getting url from the service
+
+minikube service flask-app

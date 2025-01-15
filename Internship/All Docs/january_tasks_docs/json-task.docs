@@ -1,0 +1,309 @@
+JSON Task
+
+Problem Statement
+
+Produce the mark sheets of students of Class and find the overall pass percentage of each section using a Consumer.
+   Details:
+- There are 3 sections i.e. A, B, C in Class 8. Each section has 100 students.
+- Create a topic with 3 partition in Confluent Cloud
+- Produce the student marksheets of each section to a separate partition (One partition per section)
+- Example marksheet JSON data,
+{
+  "name": "Alice",
+  "section": "A",
+  "english": 80,
+  "math": 35,
+  "physics": 63,
+  "chemistry": 77,
+  "biology": 55
+}
+- Randomize the marks and generate marksheets for the students. But keep in mind, some of the marks need to be less than 60.
+- Start 3 consumers and assign (not subscribe) each one to a partition. The consumer should do the following,
+        - For every student, if the total aggregate marks is greater than 300, then the student is considered "Pass" or else "Failed".
+        - Calculate the Pass percentage of the Section and print the output.
+        - Consumers can exactly consume 100 messages or close the poll loop if there is no new data.
+- Each Consumer should finally print something like below:
+       Section: A
+       Pass percentage: 72%
+       Fail percentage: 28%
+Extra task: 
+1) Print the failed students marks with the percentage results
+
+Solution
+
+1) Up the docker container
+docker-compose up --build
+
+2) pip install kafka-python
+
+3) json-producer.py
+
+import json
+from kafka import KafkaProducer
+
+bootstrap_servers = ['localhost:9094']
+
+producer = KafkaProducer(
+    bootstrap_servers=bootstrap_servers,
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
+
+def generate_marks(section, partition):
+    with open(f"marksheets-{section}.json", 'r') as file:
+        marksheets = json.load(file)
+    for marksheet in marksheets:
+        producer.send('student_marksheets', value=marksheet, partition=partition)    
+    print(f"Marksheets generated for Section {section}")
+
+generate_marks('A', 0)
+generate_marks('B', 1)
+generate_marks('C', 2)
+
+producer.flush()
+producer.close()
+
+4) json-consumer.py
+
+from kafka import KafkaConsumer, TopicPartition
+import json
+
+def calculate_pass_percentage(section, partition):
+    consumer = KafkaConsumer(
+        bootstrap_servers='localhost:9094',
+        group_id=f'consumer-group-{section}',
+        auto_offset_reset='earliest',
+        enable_auto_commit=False
+    )
+    
+    consumer.assign([TopicPartition('student_marksheets', partition)])
+    
+    total_students = 0
+    passed_students = 0
+    failed_students = []
+    
+    for message in consumer:
+        total_students += 1
+        marksheet = json.loads(message.value.decode('utf-8'))
+        total_marks = marksheet["english"] + marksheet["math"] + marksheet["physics"] + marksheet["chemistry"] + marksheet["biology"]
+        if total_marks > 300:
+            passed_students += 1
+        else:
+            marksheet["total_marks"] = total_marks
+            failed_students.append(marksheet)
+        
+        if total_students >= 6:
+            break
+    
+    pass_percentage = (passed_students / total_students) * 100
+    fail_percentage = 100 - pass_percentage
+    
+    print(f"Section: {section}")
+    print(f"Pass percentage: {pass_percentage:.2f}%")
+    print(f"Fail percentage: {fail_percentage:.2f}%")
+    print(f"The failed students are")
+    for student in failed_students:
+        print(f"Student Name:",student["name"])
+        print(f"Section:",student["section"])
+        print(f"Marks")
+        print(f"English:",student["english"])
+        print(f"Maths:",student["math"])
+        print(f"Physics:",student["physics"])
+        print(f"Chemistry:",student["chemistry"])
+        print(f"Biology:",student["biology"])
+        print(f"Total Marks:",student["total_marks"])
+
+calculate_pass_percentage('A', 0)
+calculate_pass_percentage('B', 1)
+calculate_pass_percentage('C', 2)
+
+5) marksheets-A.json
+
+[
+        {
+        "name": "Student 1A",
+        "section": "A",
+        "english": 90,
+        "math": 50,
+        "physics": 80,
+        "chemistry": 63,
+        "biology": 30
+    },
+    {
+        "name": "Student 2A",
+        "section": "A",
+        "english": 80,
+        "math": 50,
+        "physics": 60,
+        "chemistry": 63,
+        "biology": 80
+    },
+    {
+        "name": "Student 3A",
+        "section": "A",
+        "english": 90,
+        "math": 50,
+        "physics": 80,
+        "chemistry": 63,
+        "biology": 30
+    },
+    {
+        "name": "Student 4A",
+        "section": "A",
+        "english": 100,
+        "math": 100,
+        "physics": 99,
+        "chemistry": 96,
+        "biology": 90
+    },
+    {
+        "name": "Student 5A",
+        "section": "A",
+        "english": 60,
+        "math": 50,
+        "physics": 80,
+        "chemistry": 63,
+        "biology": 30
+    },
+    {
+        "name": "Student 6A",
+        "section": "A",
+        "english": 90,
+        "math": 50,
+        "physics": 80,
+        "chemistry": 63,
+        "biology": 30
+    }
+]
+
+6) marksheets-B.json
+
+[
+    {
+        "name": "Student 1B",
+        "section": "B",
+        "english": 62,
+        "math": 52,
+        "physics": 90,
+        "chemistry": 10,
+        "biology": 30
+    },
+    {
+        "name": "Student 2B",
+        "section": "B",
+        "english": 80,
+        "math": 50,
+        "physics": 90,
+        "chemistry": 63,
+        "biology": 20
+    },
+    {
+        "name": "Student 3B",
+        "section": "B",
+        "english": 83,
+        "math": 50,
+        "physics": 80,
+        "chemistry": 63,
+        "biology": 54
+    },
+    {
+        "name": "Student 4B",
+        "section": "B",
+        "english": 99,
+        "math": 98,
+        "physics": 97,
+        "chemistry": 96,
+        "biology": 90
+    },
+    {
+        "name": "Student 5B",
+        "section": "B",
+        "english": 60,
+        "math": 50,
+        "physics": 80,
+        "chemistry": 63,
+        "biology": 30
+    },
+    {
+        "name": "Student 6B",
+        "section": "B",
+        "english": 90,
+        "math": 50,
+        "physics": 80,
+        "chemistry": 63,
+        "biology": 30
+    }
+]
+
+7) marksheets-C.json
+
+[
+    {
+        "name": "Student 1C",
+        "section": "C",
+        "english": 50,
+        "math": 52,
+        "physics": 90,
+        "chemistry": 33,
+        "biology": 30
+    },
+    {
+        "name": "Student 2C",
+        "section": "C",
+        "english": 90,
+        "math": 50,
+        "physics": 90,
+        "chemistry": 63,
+        "biology": 70
+    },
+    {
+        "name": "Student 3C",
+        "section": "C",
+        "english": 80,
+        "math": 50,
+        "physics": 66,
+        "chemistry": 63,
+        "biology": 54
+    },
+    {
+        "name": "Student 4C",
+        "section": "C",
+        "english": 100,
+        "math": 98,
+        "physics": 95,
+        "chemistry": 96,
+        "biology": 92
+    },
+    {
+        "name": "Student 5C",
+        "section": "C",
+        "english": 63,
+        "math": 50,
+        "physics": 90,
+        "chemistry": 63,
+        "biology": 65
+    },
+    {
+        "name": "Student 6C",
+        "section": "C",
+        "english": 10,
+        "math": 50,
+        "physics": 100,
+        "chemistry": 63,
+        "biology": 30
+    }
+]   
+
+cd /home/mpshriveena/Desktop/Platformatory/Daily Codes/january_tasks/json-task
+
+8) Create a topic with 3 partitions
+kafka-topics --bootstrap-server localhost:9094 --create --topic student_marksheets --partitions 3 --replication-factor 1
+
+9) Run the producer
+python3 json-producer.py
+
+10) Run the consumer
+python3 json-consumer.py
+The pass percentage, fail percentage and the list of failed students in all sections must be displayed
+
+11) To see the raw json data produced
+kafka-console-consumer --bootstrap-server localhost:9094 --topic student_marksheets --from-beginning

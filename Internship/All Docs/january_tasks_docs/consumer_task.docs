@@ -1,0 +1,41 @@
+Task 1
+Demonstrate the following using split terminals:
+- Create a topic with 3 partitions
+- Start 2 consumers belonging to the same group on the created topic
+- Produce to the topic and observe the message distribution
+- Start another consumer with the same group and observe the message distribution
+- Start one more consumer with the same group and observe the message distribution
+- Explain the observations with conceptual knowledge
+
+sudo docker exec -u root -it confluent-platform /bin/bash
+
+1) Start the zookeeper
+zookeeper-server-start $CONFLUENT_HOME/etc/kafka/zookeeper.properties
+
+2) Start the kafka broker
+kafka-server-start $CONFLUENT_HOME/etc/kafka/server.properties
+
+3) Create a test topic with three partitions
+kafka-topics --bootstrap-server confluent-platform:9092 --topic consumer-demo --create --partitions 3
+
+4) Start 2 consumers within same group
+kafka-console-consumer --bootstrap-server confluent-platform:9092 --topic consumer-demo --from-beginning --group consumer-group-1 --property print.key=true
+kafka-console-consumer --bootstrap-server confluent-platform:9092 --topic consumer-demo --from-beginning --group consumer-group-1
+
+5) Start producing to this topic
+kafka-console-producer --bootstrap-server confluent-platform:9092 --topic consumer-demo
+
+6) What happens?
+Two partitions are assigned to one consumer and one partition is assigned to another consumer
+
+7) Start third consumer within same group
+kafka-console-consumer --bootstrap-server confluent-platform:9092 --topic consumer-demo --from-beginning --group consumer-group-1 --property print.key=true
+
+8) What happens?
+The parttitions are reassigned with the consumers and each consumer starts consuming from one partition.
+
+9) Start the fourth consumer within same group
+kafka-console-consumer --bootstrap-server confluent-platform:9092 --topic consumer-demo --from-beginning --group consumer-group-1 --property print.key=true
+
+10) What happens?
+The fourth consumer will be idle because the topic has only three consumers.

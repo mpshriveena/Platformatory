@@ -1,0 +1,68 @@
+Task: Simple Nginx Application using Flask in docker
+
+Problem Statement
+Deploy a basic nginx application built inside a container. For e.g., write a basic application in python/java (flask web app), containerize it and deploy. Use dockerfile for this exercise
+
+Solution
+
+1) Create app.py and requirements.txt inside app folder
+
+app.py
+from flask import Flask
+app = Flask(__name__)
+@app.route('/')
+def hello():
+    return "Hello World!!"
+if __name__ == '__main__':
+    app.run()
+
+requirements.txt
+flask
+gunicorn
+
+2) Create nginx.conf file inside nginx folder
+
+nginx.conf
+events {
+    worker_connections  1024;
+}
+http{
+   server{
+     listen 80;
+     location / {
+       proxy_pass  http://app:8888;     
+}
+}
+}
+
+3) Dockerfile
+
+FROM ubuntu:20.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y python3.9 python3-pip
+WORKDIR /hab
+COPY ./app .
+RUN pip3 install -r requirements.txt
+CMD gunicorn --bind 0.0.0.0:8888 app:app  
+
+4) docker-compose.yml
+
+version: "3"
+services:
+    app:
+       build:
+           context: .
+       ports:
+           -  "8888"
+    nginx:
+        image: nginx:latest
+        volumes:
+        - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+        depends_on:
+        - app
+        ports:
+        - "80:80"
+
+5) Run
+docker-compose up --build
+App can be viewed in url http://0.0.0.0:80

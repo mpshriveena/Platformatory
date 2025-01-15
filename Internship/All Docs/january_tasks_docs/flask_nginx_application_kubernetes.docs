@@ -152,7 +152,6 @@ cd ..
 9) Apply
 
 kubectl apply -f flask-nginx-deployment.yaml
-minikube service flask-nginx-Service
 
 10) Getting logs and pod status
 
@@ -164,3 +163,9 @@ kubectl get services
 11) Getting url from the service
 
 minikube service flask-app
+
+12) Scaling
+
+Change the replicas in the deploymnet of app to 3
+Apply again
+kubectl apply -f flask-nginx-deployment.yaml

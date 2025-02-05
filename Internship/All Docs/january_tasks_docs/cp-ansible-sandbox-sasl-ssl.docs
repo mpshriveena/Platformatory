@@ -1,0 +1,288 @@
+Enabling SASL-SSL in cp-ansible-sandbox
+
+cd /home/mpshriveena/Desktop/Platformatory/Daily\ Codes/Ancible/sasl-ssl/cp-ansible-sandbox
+
+1) docker-compose is modified to add volumes
+docker-compose.yml
+version: '3'
+
+services:
+  ansible-control:
+    build:
+      context: . 
+      dockerfile: Dockerfile
+    hostname: ansible-control
+    volumes:
+      - ./cp-ansible:/ansible/ansible_collections/confluent/platform:rw
+      - ./inventories:/ansible/inventories
+      - ./share:/usr/share/cp-ansible-sandbox
+    environment:
+      - ANSIBLE_GATHERING=smart
+      - ANSIBLE_HOST_KEY_CHECKING=False
+      - ANSIBLE_RETRY_FILES_ENABLED=False
+      - ANSIBLE_COLLECTIONS_PATH=/ansible/ansible_collections
+      - ANSIBLE_SSH_PIPELINING=True
+      - ANSIBLE_INVENTORY=/ansible/inventories/ansible-inventory.yml
+  zookeeper1:
+    build:
+      context: ./  # This is the directory where your Dockerfile-inventory-node resides
+      dockerfile: Dockerfile-inventory-node  # This is the name of your Dockerfile
+    hostname: zookeeper1
+    privileged: true
+    cap_add:
+      - ALL
+    ports:
+      - "2222:22"
+    volumes:
+      - ./share:/usr/share/cp-ansible-sandbox
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    tmpfs:
+      - /run/lock
+      - /run
+      - /tmp
+    environment:
+      - DEBIAN_FRONTEND=non-interactive
+  
+  zookeeper2:
+    build:
+      context: ./  # This is the directory where your Dockerfile-inventory-node resides
+      dockerfile: Dockerfile-inventory-node  # This is the name of your Dockerfile
+    hostname: zookeeper2
+    privileged: true
+    cap_add:
+      - ALL
+    ports:
+      - "2223:22"
+    volumes:
+      - ./share:/usr/share/cp-ansible-sandbox
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    tmpfs:
+      - /run/lock
+      - /run
+      - /tmp
+    environment:
+      - DEBIAN_FRONTEND=non-interactive      
+  zookeeper3:
+    build:
+      context: ./  # This is the directory where your Dockerfile-inventory-node resides
+      dockerfile: Dockerfile-inventory-node  # This is the name of your Dockerfile
+    hostname: zookeeper3
+    privileged: true
+    cap_add:
+      - ALL
+    ports:
+      - "2224:22"
+    volumes:
+      - ./share:/usr/share/cp-ansible-sandbox
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    tmpfs:
+      - /run/lock
+      - /run
+      - /tmp
+    environment:
+      - DEBIAN_FRONTEND=non-interactive
+
+  kafka1:
+    build:
+      context: ./  # This is the directory where your Dockerfile-inventory-node resides
+      dockerfile: Dockerfile-inventory-node  # This is the name of your Dockerfile
+    hostname: kafka1
+    privileged: true
+    cap_add:
+      - ALL
+    ports:
+      - "2225:22"
+    volumes:
+      - ./share:/usr/share/cp-ansible-sandbox
+      - ./client:/etc/kafka/client
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    tmpfs:
+      - /run/lock
+      - /run
+      - /tmp
+    environment:
+      - DEBIAN_FRONTEND=non-interactive
+      - KAFKA_HEAP_OPTS="-Xms1G -Xmx2G"
+
+  kafka2:
+    build:
+      context: ./  # This is the directory where your Dockerfile-inventory-node resides
+      dockerfile: Dockerfile-inventory-node  # This is the name of your Dockerfile
+    hostname: kafka2
+    privileged: true
+    cap_add:
+      - ALL
+    ports:
+      - "2226:22"
+    volumes:
+      - ./share:/usr/share/cp-ansible-sandbox
+      - ./client:/etc/kafka/client
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    tmpfs:
+      - /run/lock
+      - /run
+      - /tmp
+    environment:
+      - DEBIAN_FRONTEND=non-interactive
+      - KAFKA_HEAP_OPTS="-Xms1G -Xmx2G"
+  kafka3:
+    build:
+      context: ./  # This is the directory where your Dockerfile-inventory-node resides
+      dockerfile: Dockerfile-inventory-node  # This is the name of your Dockerfile
+    hostname: kafka3
+    privileged: true
+    cap_add:
+      - ALL
+    ports:
+      - "2227:22"
+    volumes:
+      - ./share:/usr/share/cp-ansible-sandbox
+      - ./client:/etc/kafka/client
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    tmpfs:
+      - /run/lock
+      - /run
+      - /tmp
+    environment:
+      - DEBIAN_FRONTEND=non-interactive
+      - KAFKA_HEAP_OPTS="-Xms1G -Xmx2G"
+
+  control-center:
+    build:
+      context: ./  # This is the directory where your Dockerfile-inventory-node resides
+      dockerfile: Dockerfile-inventory-node  # This is the name of your Dockerfile
+    hostname: control-center
+    privileged: true
+    cap_add:
+      - ALL
+    ports:
+      - "2228:22"
+      - "9021:9021"
+    volumes:
+      - ./share:/usr/share/cp-ansible-sandbox
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    tmpfs:
+      - /run/lock
+      - /run
+      - /tmp:exec,mode=777
+    environment:
+      - DEBIAN_FRONTEND=non-interactive
+
+2) Up the container
+docker-compose up --build
+docker-compose ps -a
+
+3) Outside container, setup ssh keys
+./setup-ssh-keys.sh
+
+4) Go inside ansible control node
+sudo docker exec -u root -it cp-ansible-sandbox_ansible-control_1 /bin/bash
+
+5) To enable SASL-SSL for all components, make changes according to the following in the inventory/ancible-inventory.yml file.
+---
+all:
+  vars:
+    ansible_connection: ssh
+    ansible_user: root
+    ansible_become: true
+    ansible_ssh_private_key_file: /root/.ssh/id_rsa
+    ssl_enabled: true
+    zookeeper_ssl_enabled: false
+    kafka_controller_ssl_enabled: false
+    kafka_connect_ssl_enabled: false
+    kafka_rest_ssl_enabled: false
+    schema_registry_ssl_enabled: false
+    control_center_ssl_enabled: false
+    ksql_ssl_enabled: false
+    ssl_provided_keystore_and_truststore: true
+    ssl_keystore_filepath: "/ansible/ansible_collections/confluent/platform/certs/{{inventory_hostname}}.server.keystore.jks"
+    ssl_keystore_key_password: certificate
+    ssl_keystore_store_password: certificate
+    ssl_truststore_filepath: "/ansible/ansible_collections/confluent/platform/certs/{{inventory_hostname}}.server.truststore.jks"
+    ssl_truststore_password: certificate
+    sasl_protocol: plain
+    sasl_plain_users:
+      admin:
+        principal: 'admin'
+        password: 'admin-secret'
+      schema_registry:
+        principal: 'schema_registry'
+        password: 'schema_registry-secret'
+      kafka_connect:
+        principal: 'kafka_connect'
+        password: 'kafka_connect-secret'
+      ksql:
+        principal: 'ksql'
+        password: 'ksql-secret'
+      kafka_rest:
+        principal: 'kafka_rest'
+        password: 'kafka_rest-secret'
+      control_center:
+        principal: 'control_center'
+        password: 'control_center-secret'
+      kafka_connect_replicator:
+        principal: 'kafka_connect_replicator'
+        password: 'kafka_connect_replicator-secret'
+      client:
+        principal: 'client'
+        password: 'client-secret'
+      platformatory:
+        principal: 'platformatory'
+        password: 'platformatory'
+      user1:
+        principal: 'user1'
+        password: user1-secret
+      user2:
+        principal: 'user2'
+        password: user2-secret
+      user3:
+        principal: 'user3'
+        password: user3-secret
+
+zookeeper:
+  hosts:
+    zookeeper1:
+    zookeeper2:
+    zookeeper3:
+
+kafka_broker:
+  hosts:
+    kafka1:
+    kafka2:
+    kafka3:
+
+control_center:
+  hosts:
+    control-center:
+
+6) Execute the following command
+ansible-playbook confluent.platform.all
+
+7) SSH into the kafka1 container
+ssh root@kafka1
+
+8) client-1-ssl.properties
+security.protocol=SASL_SSL
+sasl.mechanism=PLAIN
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="platformatory" \
+    password="platformatory";
+ssl.truststore.location=/etc/kafka/client/certs/client-1.truststore.jks
+ssl.truststore.password=certificate
+ssl.keystore.location=/etc/kafka/client/certs/client-1.keystore.jks
+ssl.keystore.password=certificate
+ssl.key.password=certificate
+
+9) Working
+Now successfully
+kafka-topics --bootstrap-server kafka1:9092 --list
+this won't work
+
+But
+kafka-topics --bootstrap-server kafka1:9092 --list
+kafka-topics --bootstrap-server kafka1:9092 --list --command-config /etc/kafka/client/configs/client-1-ssl.properties
+kafka-topics --bootstrap-server kafka1:9092 --topic sasl-test --create --command-config /etc/kafka/client/configs/client-1-ssl.properties
+kafka-console-producer --bootstrap-server kafka1:9092 --topic sasl-test --producer.config /etc/kafka/client/configs/client-1-ssl.properties
+kafka-console-consumer --bootstrap-server kafka1:9092 --topic sasl-test --from-beginning --consumer.config /etc/kafka/client/configs/client-1-ssl.propertiesthis works
+
+Also, if the credentials in client config are wrong, then this command work work and we will get error.

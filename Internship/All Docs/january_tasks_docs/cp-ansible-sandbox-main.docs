@@ -1,0 +1,38 @@
+Initial Steps to use cp-ansible-sandbox
+
+cd /home/mpshriveena/Desktop/Platformatory/Daily\ Codes/Ancible/main/cp-ansible-sandbox
+docker-compose up --build
+docker-compose ps -a
+
+Outside container, setup ssh keys
+./setup-ssh-keys.sh
+
+Go inside ansible control node
+sudo docker exec -u root -it cp-ansible-sandbox_ansible-control_1 /bin/bash
+
+Execute the following command
+ansible-playbook confluent.platform.all
+
+SSH into any kafka container from ansible control node to check the list of topics
+ssh root@kafka1
+
+To list the topics
+kafka-topics --bootstrap-server kafka1:9092 --list
+kafka-topics --bootstrap-server kafka2:9092 --list
+kafka-topics --bootstrap-server kafka3:9092 --list
+
+kafka-topics --bootstrap-server kafka1:9092 --topic first-topic --create
+kafka-console-producer --bootstrap-server kafka1:9092 --topic first-topic
+kafka-console-consumer --bootstrap-server kafka1:9092 --topic first-topic --from-beginning
+
+Key Understanding of cp-ansible sandbox
+* There are 3 zookeeper containers, 3 kafka containers, an ansible-control-node and a control-center container [look into the docker-compose]. 
+* Only ansible control node contains ansible. Other containers are just empty debian containers.
+* When "ansible-playbook confluent.platform.all" command is executed, it installs the packages in respective containers ie., it installs zookeeper in zookeeper containers, kafka in kafka containers, control center in control center container.
+* After installing the kafka packages, the task is to configure the following security mechanisms
+        --> TLS-SSL
+        --> SASL-plaintext
+        --> SASL-SSL
+        --> MTLS
+        --> RBAC-LDAP
+        --> ACL
